@@ -23,8 +23,11 @@ RUN npm run build:client
 RUN npm run build:server
 
 # Production runtime stage
-FROM node:18-alpine AS runner
+FROM node:18-slim AS runner
 WORKDIR /app
+
+# Install OpenSSL (required by Prisma engine)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 COPY server/package.json ./server/
@@ -35,6 +38,7 @@ RUN npm ci --omit=dev
 
 # Copy prisma schema and client files
 COPY --from=builder /app/server/prisma ./server/prisma
+
 # Re-generate Prisma Client for production runtime platform
 RUN npx prisma generate --schema=./server/prisma/schema.prisma
 
