@@ -1,0 +1,26 @@
+{
+  "name": "classroom-quiz-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Live Quiz Competition Platform for classrooms",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build:shared": "npm run build --workspace=shared",
+    "build:server": "npm run build --workspace=server",
+    "build:client": "npm run build --workspace=client",
+    "prisma:generate": "npm run prisma:generate --workspace=server",
+    "prisma:migrate": "npm run prisma:migrate --workspace=server",
+    "prisma:seed": "npm run prisma:seed --workspace=server",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

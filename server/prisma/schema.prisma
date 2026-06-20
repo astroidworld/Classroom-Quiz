@@ -1,0 +1,159 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime   @default(now())
+  quizzes      Quiz[]
+  sessions     Session[]
+}
+
+enum PointsMode {
+  STANDARD
+  DOUBLE
+  NONE
+}
+
+model Quiz {
+  id                              String     @id @default(uuid())
+  hostId                          String
+  host                            User       @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  title                           String
+  description                     String?
+  
+  // Settings represented directly for type safety and defaults
+  timePerQuestion                 Int        @default(30)
+  pointsMode                      PointsMode @default(STANDARD)
+  shuffleQuestions                Boolean    @default(false)
+  shuffleOptions                  Boolean    @default(false)
+  showLeaderboardBetweenQuestions Boolean    @default(true)
+  allowLateJoin                   Boolean    @default(true)
+  
+  createdAt                       DateTime   @default(now())
+  questions                       Question[]
+  sessions                        Session[]
+}
+
+enum QuestionType {
+  MCQ_SINGLE
+  TRUE_FALSE
+}
+
+model Question {
+  id           String       @id @default(uuid())
+  quizId       String
+  quiz         Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  order        Int
+  text         String
+  imageUrl     String?
+  type         QuestionType @default(MCQ_SINGLE)
+  timeLimitSec Int?         // Nullable override for Quiz.timePerQuestion
+  points       Int          @default(1000)
+  explanation  String?
+  
+  options      Option[]
+  answers      Answer[]
+  sessions     Session[]    @relation("CurrentQuestion")
+  homeworkParticipants Participant[] @relation("HomeworkCurrentQuestion")
+}
+
+model Option {
+  id         String   @id @default(uuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean
+  answers    Answer[]
+}
+
+enum SessionStatus {
+  LOBBY
+  LIVE
+  PAUSED
+  ENDED
+}
+
+enum SessionMode {
+  LIVE
+  HOMEWORK
+}
+
+model Session {
+  id                        String        @id @default(uuid())
+  quizId                    String
+  quiz                      Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  hostId                    String
+  host                      User          @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  joinCode                  String        @unique // 6-digit unique join code
+  status                    SessionStatus @default(LOBBY)
+  mode                      SessionMode   @default(LIVE)
+  homeworkStart             DateTime?
+  homeworkEnd               DateTime?
+  
+  // Track currently active question for live synchronization
+  currentQuestionId         String?
+  currentQuestion           Question?     @relation("CurrentQuestion", fields: [currentQuestionId], references: [id], onDelete: SetNull)
+  currentQuestionIndex      Int           @default(0)
+  currentQuestionStartedAt  DateTime?
+  
+  startedAt                 DateTime      @default(now())
+  endedAt                   DateTime?
+  
+  participants              Participant[]
+  answers                   Answer[]
+
+  @@index([hostId])
+  @@index([quizId])
+}
+
+model Participant {
+  id             String    @id @default(uuid())
+  sessionId      String
+  session        Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  displayName    String
+  joinedAt       DateTime  @default(now())
+  disconnectedAt DateTime?
+  finalScore     Int       @default(0)
+  finalRank      Int?
+  
+  // Homework/async state tracking
+  currentQuestionId        String?
+  currentQuestion          Question? @relation("HomeworkCurrentQuestion", fields: [currentQuestionId], references: [id], onDelete: SetNull)
+  currentQuestionStartedAt DateTime?
+  isCompleted              Boolean   @default(false)
+
+  answers        Answer[]
+
+  @@unique([sessionId, displayName]) // Display name must be unique within a session
+  @@index([sessionId])
+}
+
+model Answer {
+  id               String      @id @default(uuid())
+  sessionId        String
+  session          Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId    String
+  participant      Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String
+  selectedOption   Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  isCorrect        Boolean
+  responseTimeMs   Int
+  pointsAwarded    Int
+  answeredAt       DateTime    @default(now())
+
+  // Each participant can submit at most one answer per question in a session
+  @@unique([participantId, questionId])
+  @@index([sessionId])
+  @@index([sessionId, participantId])
+}
