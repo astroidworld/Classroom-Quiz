@@ -13,6 +13,7 @@ import StudentPlay from './pages/StudentPlay.js';
 import StudentLock from './pages/StudentLock.js';
 import StudentLeaderboard from './pages/StudentLeaderboard.js';
 import StudentPodium from './pages/StudentPodium.js';
+import StudentReveal from './pages/StudentReveal.js';
 
 import HostPlay from './pages/HostPlay.js';
 import SessionDashboard from './pages/SessionDashboard.js';
@@ -80,6 +81,8 @@ const StudentPlayWrapper = () => {
             return <StudentPlay />;
           case 'QUESTION_LOCK':
             return <StudentLock />;
+          case 'QUESTION_REVEAL':
+            return <StudentReveal />;
           case 'LEADERBOARD':
             return <StudentLeaderboard />;
           case 'PODIUM':

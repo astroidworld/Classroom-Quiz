@@ -17,6 +17,8 @@ const commitImportSchema = z.object({
       type: z.enum(['MCQ_SINGLE', 'TRUE_FALSE']),
       timeLimitSec: z.number().int().positive().nullable(),
       points: z.number().int().nonnegative(),
+      codeSnippet: z.string().nullable().optional(),
+      codeLanguage: z.string().nullable().optional(),
       options: z.array(
         z.object({
           text: z.string().min(1),
@@ -91,6 +93,8 @@ export const commitImport = async (req: AuthenticatedRequest, res: Response, nex
             type: q.type,
             timeLimitSec: q.timeLimitSec,
             points: q.points,
+            codeSnippet: q.codeSnippet,
+            codeLanguage: q.codeLanguage,
           },
         });
 

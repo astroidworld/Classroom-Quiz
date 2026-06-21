@@ -196,6 +196,8 @@ export const getSessionAnalytics = async (req: AuthenticatedRequest, res: Respon
         accuracy: Math.round(accuracy * 10) / 10,
         avgResponseTimeSec: Math.round(avgResponseTimeSec * 10) / 10,
         mostMissed: false, // Flagged after finding the minimum
+        codeSnippet: q.codeSnippet,
+        codeLanguage: q.codeLanguage,
         optionsDistribution: q.options.map((opt) => ({
           id: opt.id,
           text: opt.text,
@@ -276,10 +278,12 @@ export const getSessionAnalytics = async (req: AuthenticatedRequest, res: Respon
         questionId: ans.questionId,
         text: ans.question.text,
         order: ans.question.order,
-        selectedOptionText: ans.selectedOption.text,
+        selectedOptionText: ans.selectedOption ? ans.selectedOption.text : 'Unanswered',
         isCorrect: ans.isCorrect,
         responseTimeSec: Math.round((ans.responseTimeMs / 1000) * 10) / 10,
         pointsAwarded: ans.pointsAwarded,
+        earlyBonus: ans.earlyBonus,
+        penalty: ans.penalty,
       })).sort((a, b) => a.order - b.order);
 
       const slowest = [...p.answers]
@@ -313,7 +317,10 @@ export const getSessionAnalytics = async (req: AuthenticatedRequest, res: Respon
         questionId: ans.questionId,
         isCorrect: ans.isCorrect,
         responseTimeSec: Math.round((ans.responseTimeMs / 1000) * 10) / 10,
-        selectedOptionText: ans.selectedOption.text,
+        selectedOptionText: ans.selectedOption ? ans.selectedOption.text : 'Unanswered',
+        pointsAwarded: ans.pointsAwarded,
+        earlyBonus: ans.earlyBonus,
+        penalty: ans.penalty,
       }));
 
       const cellAnswers = matrixQuestions.map((mq) => {
@@ -323,6 +330,9 @@ export const getSessionAnalytics = async (req: AuthenticatedRequest, res: Respon
           isCorrect: match ? match.isCorrect : null,
           responseTimeSec: match ? match.responseTimeSec : null,
           selectedOptionText: match ? match.selectedOptionText : null,
+          pointsAwarded: match ? match.pointsAwarded : null,
+          earlyBonus: match ? match.earlyBonus : null,
+          penalty: match ? match.penalty : null,
         };
       });
 

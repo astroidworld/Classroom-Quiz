@@ -14,6 +14,8 @@ export interface PlayerQuestionDto {
   type: 'MCQ_SINGLE' | 'TRUE_FALSE';
   timeLimitSec: number;
   points: number;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
   options: {
     id: string;
     text: string;
@@ -26,6 +28,7 @@ export interface LeaderboardEntryDto {
   score: number;
   streak: number;
   isOnline: boolean;
+  pointsChange?: number;
 }
 
 /**
@@ -37,13 +40,15 @@ export interface ClientToServerEvents {
   'session:start': (payload: { roomCode: string }) => void;
   'question:next': (payload: { roomCode: string }) => void;
   'question:skip': (payload: { roomCode: string }) => void;
+  'question:reveal:request': (payload: { roomCode: string }) => void; // New reveal trigger
   'session:pause': (payload: { roomCode: string }) => void;
   'session:resume': (payload: { roomCode: string }) => void;
   'session:end': (payload: { roomCode: string }) => void;
 
   // Student control events
   'player:join': (payload: { roomCode: string; displayName: string }) => void;
-  'player:answer': (payload: { roomCode: string; questionId: string; optionId: string }) => void;
+  'player:select': (payload: { roomCode: string; questionId: string; optionId: string }) => void; // Transient selection (manual mode only)
+  'player:submit': (payload: { roomCode: string; questionId: string; optionId: string }) => void; // Locked-in submit (both modes)
   'player:reconnect': (payload: { roomCode: string; participantId: string }) => void;
 }
 
@@ -66,14 +71,62 @@ export interface ServerToClientEvents {
     totalQuestions: number;
     serverStartTs: number; // Server epoch timestamp in ms
     timeLimitSec: number;
-  }) => void;
-  'question:lock': (payload: {
-    reason: 'TIMEOUT' | 'ALL_ANSWERED' | 'HOST_SKIPPED';
-    correctOptionId: string;
-    explanation: string | null;
+    submissionMode: 'auto' | 'manual';
   }) => void;
 
-  // Scoring response
+  'question:lock': (payload: {
+    reason: 'TIMEOUT' | 'ALL_ANSWERED' | 'HOST_SKIPPED';
+  }) => void; // Defer correct answer revealing
+
+  // Reveal moment payloads
+  'question:reveal': (payload: {
+    questionId: string;
+    questionText: string;
+    correctOptionId: string;
+    allOptions: { id: string; text: string }[];
+    selectedOptionId: string | null;
+    isCorrect: boolean;
+    isUnanswered: boolean;
+    autoSubmitted: boolean;
+    pointsAwarded: number;
+    earlyBonusAwarded: number;
+    negativePenalty: number;
+    responseTimeMs: number;
+    newTotalScore: number;
+    newRank: number;
+    totalParticipants: number;
+    resultScreenDurationMs: number;
+    isFastest?: boolean;
+    showLeaderboardBetweenQuestions?: boolean;
+  }) => void;
+
+  'question:reveal:host': (payload: {
+    questionId: string;
+    correctOptionId: string;
+    optionDistribution: { optionId: string; optionText: string; count: number; isCorrect: boolean }[];
+    correctCount: number;
+    incorrectCount: number;
+    unansweredCount: number;
+    totalCount: number;
+    averageResponseTimeMs: number;
+    totalEarlyBonusAwarded: number;
+    totalPenaltyDeducted: number;
+    studentResults: {
+      participantId: string;
+      displayName: string;
+      selectedOptionId: string | null;
+      isCorrect: boolean;
+      autoSubmitted: boolean;
+      pointsAwarded: number;
+      earlyBonus: number;
+      penalty: number;
+      responseTimeMs: number;
+      newTotalScore: number;
+      newRank: number;
+    }[];
+  }) => void;
+
+  // Scoring response (maintained for backward compatibility/Homework mode if needed)
   'answer:result': (payload: {
     questionId: string;
     isCorrect: boolean;
@@ -97,5 +150,8 @@ export interface ServerToClientEvents {
     hasAnsweredActiveQuestion: boolean;
     activeQuestion?: PlayerQuestionDto;
     secondsRemaining?: number;
+    submissionMode?: 'auto' | 'manual';
+    isAnswerRevealed?: boolean;
+    lastRevealPayload?: any;
   }) => void;
 }

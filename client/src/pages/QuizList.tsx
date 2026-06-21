@@ -236,44 +236,52 @@ export default function QuizList() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      onClick={() => navigate(`/host/quizzes/${quiz.id}/edit`)}
-                      className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Edit className="w-4 h-4 text-slate-400" />
-                      Edit Quiz
-                    </button>
-                    <button
-                      onClick={() => navigate(`/host/play/${quiz.id}`)}
-                      className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-3.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
-                      title="Launch Live Game Room"
-                    >
-                      <Play className="w-4 h-4 fill-white" />
-                      Host
-                    </button>
-                    <button
-                      onClick={() => openHomeworkModal(quiz.id)}
-                      className="bg-indigo-650 hover:bg-indigo-750 text-white font-bold py-2.5 px-3.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
-                      title="Assign Homework (Self-Paced)"
-                    >
-                      <Calendar className="w-4 h-4" />
-                      Assign
-                    </button>
-                    <button
-                      onClick={() => navigate(`/host/quizzes/${quiz.id}/sessions`)}
-                      className="bg-slate-900/60 hover:bg-slate-800 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-white p-2.5 rounded-xl transition-all"
-                      title="View Quiz Reports & Session History"
-                    >
-                      <BarChart3 className="w-4.5 h-4.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(quiz.id, quiz.title)}
-                      className="bg-slate-900/60 hover:bg-red-500/10 border border-slate-850 hover:border-red-500/20 text-slate-500 hover:text-red-400 p-2.5 rounded-xl transition-all"
-                      title="Delete Quiz"
-                    >
-                      <Trash2 className="w-4.5 h-4.5" />
-                    </button>
+                  <div className="space-y-2.5">
+                    {/* Primary Actions Row */}
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={() => navigate(`/host/play/${quiz.id}`)}
+                        className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-md"
+                        title="Launch Live Game Room"
+                      >
+                        <Play className="w-4 h-4 fill-white" />
+                        Host
+                      </button>
+                      <button
+                        onClick={() => openHomeworkModal(quiz.id)}
+                        className="flex-1 bg-indigo-650 hover:bg-indigo-750 text-white font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
+                        title="Assign Homework (Self-Paced)"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        Assign
+                      </button>
+                    </div>
+
+                    {/* Secondary Actions Row */}
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-850 pt-2.5">
+                      <button
+                        onClick={() => navigate(`/host/quizzes/${quiz.id}/edit`)}
+                        className="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-white font-bold py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-slate-400" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => navigate(`/host/quizzes/${quiz.id}/sessions`)}
+                        className="bg-slate-900/60 hover:bg-slate-800 border border-slate-850 hover:border-slate-750 text-slate-400 hover:text-white p-2 rounded-lg transition-all flex items-center justify-center gap-1.5 text-xs font-semibold"
+                        title="View Quiz Reports & Session History"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        Reports
+                      </button>
+                      <button
+                        onClick={() => handleDelete(quiz.id, quiz.title)}
+                        className="bg-slate-905 hover:bg-red-500/10 border border-slate-850 hover:border-red-500/20 text-slate-500 hover:text-red-400 p-2 rounded-lg transition-all"
+                        title="Delete Quiz"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -31,8 +31,15 @@ export interface LiveSession {
   shuffleOptions: boolean;
   showLeaderboardBetweenQuestions: boolean;
   allowLateJoin: boolean;
+  submissionMode: 'auto' | 'manual';
+  earlySubmitBonus: { enabled: boolean; maxBonusPoints: number };
+  negativeMarking: { enabled: boolean; mode: 'fixed' | 'percentage'; value: number };
+  resultScreenDuration: { correctSec: number; incorrectSec: number };
 
+  shuffledQuestionIds?: string[];
   participants: Map<string, MemoryParticipant>; // Keyed by displayName
+  playerSelections: Map<string, string>; // Maps participantId to optionId (transient selections)
+  isQuestionRevealed: boolean;
 }
 
 class SessionManager {
@@ -95,7 +102,13 @@ class SessionManager {
       shuffleOptions: quiz.shuffleOptions,
       showLeaderboardBetweenQuestions: quiz.showLeaderboardBetweenQuestions,
       allowLateJoin: quiz.allowLateJoin,
+      submissionMode: (quiz.settings as any)?.submissionMode || 'manual',
+      earlySubmitBonus: (quiz.settings as any)?.earlySubmitBonus || { enabled: false, maxBonusPoints: 50 },
+      negativeMarking: (quiz.settings as any)?.negativeMarking || { enabled: false, mode: 'fixed', value: 25 },
+      resultScreenDuration: (quiz.settings as any)?.resultScreenDuration || { correctSec: 3, incorrectSec: 3 },
       participants: new Map(),
+      playerSelections: new Map(),
+      isQuestionRevealed: false,
     };
 
     this.activeSessions.set(joinCode, liveSession);
@@ -161,8 +174,20 @@ class SessionManager {
       shuffleOptions: quiz.shuffleOptions,
       showLeaderboardBetweenQuestions: quiz.showLeaderboardBetweenQuestions,
       allowLateJoin: quiz.allowLateJoin,
+      submissionMode: (quiz.settings as any)?.submissionMode || 'manual',
+      earlySubmitBonus: (quiz.settings as any)?.earlySubmitBonus || { enabled: false, maxBonusPoints: 50 },
+      negativeMarking: (quiz.settings as any)?.negativeMarking || { enabled: false, mode: 'fixed', value: 25 },
+      resultScreenDuration: (quiz.settings as any)?.resultScreenDuration || { correctSec: 3, incorrectSec: 3 },
       participants: new Map(),
+      playerSelections: new Map(),
+      isQuestionRevealed: false, // Will be computed below
     };
+
+    // Determine if the current question has already been revealed
+    const currentAnswers = dbSession.participants.flatMap(p => p.answers).filter(a => a.questionId === dbSession.currentQuestionId);
+    if (currentAnswers.length > 0) {
+      liveSession.isQuestionRevealed = currentAnswers.some(a => a.pointsAwarded > 0 || a.penalty > 0 || a.earlyBonus > 0 || a.autoSubmitted);
+    }
 
     // Load participants and compute their scores and streaks
     dbSession.participants.forEach((p) => {

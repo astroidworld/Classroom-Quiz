@@ -70,9 +70,18 @@ export default function StudentLeaderboard() {
                     </div>
                   )}
 
-                  <span className="text-sm font-black text-slate-300">
-                    {player.score} pts
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-black text-slate-300">
+                      {player.score} pts
+                    </span>
+                    {player.pointsChange !== undefined && player.pointsChange !== 0 && (
+                      <span className={`text-[10px] font-black ${
+                        player.pointsChange > 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}>
+                        {player.pointsChange > 0 ? `+${player.pointsChange}` : player.pointsChange} pts
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );

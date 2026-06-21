@@ -79,11 +79,15 @@ export default function StudentPodium() {
           {/* 1st Place Column */}
           {firstPlace && (
             <div className="flex flex-col items-center flex-1 animate-fade-in opacity-0" style={{ animationFillMode: 'forwards' }}>
-              <span className="text-sm font-black truncate max-w-[100px] text-yellow-400 mb-1.5">{firstPlace.displayName}</span>
-              <div className="w-full bg-indigo-650/30 border border-indigo-500/35 rounded-t-3xl flex flex-col items-center justify-center p-3 h-36 shadow-glow relative">
-                <div className="absolute -top-6 animate-bounce">
-                  <Star className="w-8 h-8 text-yellow-400 fill-yellow-400" />
+              <div className="flex flex-col items-center mb-2">
+                <div className="animate-bounce mb-1">
+                  <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
                 </div>
+                <span className="text-sm font-black truncate max-w-[100px] text-yellow-400">
+                  {firstPlace.displayName}
+                </span>
+              </div>
+              <div className="w-full bg-indigo-650/30 border border-indigo-500/35 rounded-t-3xl flex flex-col items-center justify-center p-3 h-36 shadow-glow relative">
                 <Trophy className="w-8 h-8 text-yellow-400 fill-yellow-400 mt-2" />
                 <span className="text-xs text-yellow-300 font-black mt-1 uppercase tracking-wider">Champion</span>
                 <span className="text-sm font-black mt-2 text-yellow-400">{firstPlace.score}</span>

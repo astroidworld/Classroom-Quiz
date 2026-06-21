@@ -30,6 +30,22 @@ export default function QuizEditor() {
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [allowLateJoin, setAllowLateJoin] = useState(true);
 
+  // Phase 7 Scoring Rules states
+  const [submissionMode, setSubmissionMode] = useState<'auto' | 'manual'>('manual');
+  const [earlySubmitBonusEnabled, setEarlySubmitBonusEnabled] = useState(false);
+  const [maxBonusPoints, setMaxBonusPoints] = useState(50);
+  const [negativeMarkingEnabled, setNegativeMarkingEnabled] = useState(false);
+  const [negativeMarkingMode, setNegativeMarkingMode] = useState<'fixed' | 'percentage'>('fixed');
+  const [negativeMarkingValue, setNegativeMarkingValue] = useState(25);
+  const [correctDurationSec, setCorrectDurationSec] = useState(3);
+  const [incorrectDurationSec, setIncorrectDurationSec] = useState(3);
+
+  // Simulator states
+  const [simIsCorrect, setSimIsCorrect] = useState(true);
+  const [simIsUnanswered, setSimIsUnanswered] = useState(false);
+  const [simResponseTimeSec, setSimResponseTimeSec] = useState(5);
+  const [simBasePoints, setSimBasePoints] = useState(1000);
+
   // Layout states
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
@@ -61,6 +77,17 @@ export default function QuizEditor() {
       setShuffleOptions(activeQuiz.settings.shuffleOptions);
       setShowLeaderboard(activeQuiz.settings.showLeaderboardBetweenQuestions);
       setAllowLateJoin(activeQuiz.settings.allowLateJoin);
+      
+      // Phase 7 settings
+      setSubmissionMode(activeQuiz.settings.submissionMode || 'manual');
+      setEarlySubmitBonusEnabled(activeQuiz.settings.earlySubmitBonus?.enabled || false);
+      setMaxBonusPoints(activeQuiz.settings.earlySubmitBonus?.maxBonusPoints !== undefined ? activeQuiz.settings.earlySubmitBonus.maxBonusPoints : 50);
+      setNegativeMarkingEnabled(activeQuiz.settings.negativeMarking?.enabled || false);
+      setNegativeMarkingMode(activeQuiz.settings.negativeMarking?.mode || 'fixed');
+      setNegativeMarkingValue(activeQuiz.settings.negativeMarking?.value !== undefined ? activeQuiz.settings.negativeMarking.value : 25);
+      setCorrectDurationSec(activeQuiz.settings.resultScreenDuration?.correctSec !== undefined ? activeQuiz.settings.resultScreenDuration.correctSec : 3);
+      setIncorrectDurationSec(activeQuiz.settings.resultScreenDuration?.incorrectSec !== undefined ? activeQuiz.settings.resultScreenDuration.incorrectSec : 3);
+      
       setSettingsError(null);
     }
   }, [activeQuiz]);
@@ -84,6 +111,20 @@ export default function QuizEditor() {
           shuffleOptions,
           showLeaderboardBetweenQuestions: showLeaderboard,
           allowLateJoin,
+          submissionMode,
+          earlySubmitBonus: {
+            enabled: earlySubmitBonusEnabled,
+            maxBonusPoints: Number(maxBonusPoints),
+          },
+          negativeMarking: {
+            enabled: negativeMarkingEnabled,
+            mode: negativeMarkingMode,
+            value: Number(negativeMarkingValue),
+          },
+          resultScreenDuration: {
+            correctSec: Number(correctDurationSec),
+            incorrectSec: Number(incorrectDurationSec),
+          },
         }
       } as any);
       setSettingsSuccess(true);
@@ -285,6 +326,7 @@ export default function QuizEditor() {
                   max={300}
                   value={timePerQuestion}
                   onChange={(e) => setTimePerQuestion(Number(e.target.value))}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
                 />
               </div>
@@ -345,11 +387,331 @@ export default function QuizEditor() {
                   <span className="text-slate-300 group-hover:text-white transition-colors">Allow Late Participant Joins</span>
                 </label>
               </div>
+ 
+              {/* Scoring & Game Rules */}
+              <div className="border-t border-slate-800 pt-5 space-y-4">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-3">
+                  Scoring & Timing Rules
+                </h3>
+
+                {/* Submission Mode */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Submission Mode
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSubmissionMode('manual')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        submissionMode === 'manual'
+                          ? 'bg-indigo-500 border-indigo-550 text-white'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      Manual Submit Button
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSubmissionMode('auto')}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        submissionMode === 'auto'
+                          ? 'bg-indigo-500 border-indigo-550 text-white'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      Auto-Submit on Click
+                    </button>
+                  </div>
+                </div>
+
+                {/* Early Submit Bonus */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer group text-sm font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={earlySubmitBonusEnabled}
+                      onChange={(e) => setEarlySubmitBonusEnabled(e.target.checked)}
+                      className="w-4 h-4 bg-slate-900 border border-slate-850 rounded text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                    />
+                    <span className="text-slate-300 group-hover:text-white transition-colors">Enable Early Submission Bonus</span>
+                  </label>
+
+                  {earlySubmitBonusEnabled && (
+                    <div className="pl-7 animate-fade-in">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                        Max Early Bonus Points
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={1000}
+                        value={maxBonusPoints}
+                        onChange={(e) => setMaxBonusPoints(Number(e.target.value))}
+                        onWheel={(e) => e.currentTarget.blur()}
+                        className="w-full bg-slate-900 border border-slate-805 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-all font-medium text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Negative Marking */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer group text-sm font-semibold select-none">
+                    <input
+                      type="checkbox"
+                      checked={negativeMarkingEnabled}
+                      onChange={(e) => setNegativeMarkingEnabled(e.target.checked)}
+                      className="w-4 h-4 bg-slate-900 border border-slate-850 rounded text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                    />
+                    <span className="text-slate-300 group-hover:text-white transition-colors">Enable Negative Marking (Penalty)</span>
+                  </label>
+
+                  {negativeMarkingEnabled && (
+                    <div className="pl-7 space-y-2.5 animate-fade-in">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                          Penalty Mode
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setNegativeMarkingMode('fixed')}
+                            className={`py-1.5 px-3 rounded-lg border text-[10px] font-bold transition-all ${
+                              negativeMarkingMode === 'fixed'
+                                ? 'bg-indigo-500 border-indigo-550 text-white'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            Fixed Deduct
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNegativeMarkingMode('percentage')}
+                            className={`py-1.5 px-3 rounded-lg border text-[10px] font-bold transition-all ${
+                              negativeMarkingMode === 'percentage'
+                                ? 'bg-indigo-500 border-indigo-550 text-white'
+                                : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                          >
+                            % of Question Pts
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-450 uppercase tracking-wider mb-1.5">
+                          {negativeMarkingMode === 'fixed' ? 'Fixed Points to Deduct' : 'Percentage to Deduct (0-100%)'}
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={negativeMarkingMode === 'percentage' ? 100 : 10000}
+                          value={negativeMarkingValue}
+                          onChange={(e) => setNegativeMarkingValue(Number(e.target.value))}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          className="w-full bg-slate-900 border border-slate-805 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-all font-medium text-xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Result Screen Durations */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-405 uppercase tracking-wider mb-1.5">
+                      Correct Screen (sec)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={correctDurationSec}
+                      onChange={(e) => setCorrectDurationSec(Number(e.target.value))}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="w-full bg-slate-900 border border-slate-805 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 transition-all font-medium text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-405 uppercase tracking-wider mb-1.5">
+                      Wrong Screen (sec)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={incorrectDurationSec}
+                      onChange={(e) => setIncorrectDurationSec(Number(e.target.value))}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className="w-full bg-slate-900 border border-slate-805 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 transition-all font-medium text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Scoring Simulator */}
+              {(() => {
+                const simTimeLimitMs = timePerQuestion * 1000;
+                const simResponseTimeMs = Math.min(simResponseTimeSec, timePerQuestion) * 1000;
+                
+                const simulationResult = (() => {
+                  if (simIsUnanswered) {
+                    return { total: 0, baseAwarded: 0, earlyBonus: 0, penalty: 0 };
+                  }
+                  const timeRemainingMs = Math.max(simTimeLimitMs - simResponseTimeMs, 0);
+                  if (simIsCorrect) {
+                    const baseAwarded = Math.round(
+                      simBasePoints * (timeRemainingMs / simTimeLimitMs)
+                    );
+                    let earlyBonus = 0;
+                    if (earlySubmitBonusEnabled) {
+                      earlyBonus = Math.round(
+                        maxBonusPoints * (timeRemainingMs / simTimeLimitMs)
+                      );
+                    }
+                    return {
+                      total: baseAwarded + earlyBonus,
+                      baseAwarded,
+                      earlyBonus,
+                      penalty: 0
+                    };
+                  }
+                  let penalty = 0;
+                  if (negativeMarkingEnabled) {
+                    if (negativeMarkingMode === 'fixed') {
+                      penalty = negativeMarkingValue;
+                    } else {
+                      penalty = Math.round(simBasePoints * (negativeMarkingValue / 100));
+                    }
+                  }
+                  penalty = Math.max(0, penalty);
+                  return {
+                    total: -penalty,
+                    baseAwarded: 0,
+                    earlyBonus: 0,
+                    penalty
+                  };
+                })();
+
+                return (
+                  <div className="border-t border-slate-800 pt-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest">
+                        Scoring Simulator
+                      </h3>
+                      <span className="bg-slate-900 border border-slate-800 text-slate-500 text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                        Interactive Preview
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-950/40 border border-slate-850 p-4 rounded-xl space-y-3">
+                      {/* Correctness & State */}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setSimIsCorrect(true); setSimIsUnanswered(false); }}
+                          className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+                            simIsCorrect && !simIsUnanswered
+                              ? 'bg-emerald-500/10 border-emerald-500/35 text-emerald-400'
+                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          Correct
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setSimIsCorrect(false); setSimIsUnanswered(false); }}
+                          className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+                            !simIsCorrect && !simIsUnanswered
+                              ? 'bg-rose-500/10 border-rose-500/35 text-rose-400'
+                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          Incorrect
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setSimIsUnanswered(true); }}
+                          className={`flex-1 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+                            simIsUnanswered
+                              ? 'bg-amber-500/10 border-amber-500/35 text-amber-400'
+                              : 'bg-slate-900 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          No Answer
+                        </button>
+                      </div>
+
+                      {/* Slider: Response Time */}
+                      {!simIsUnanswered && (
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                            <span>Response Time</span>
+                            <span>{simResponseTimeSec}s / {timePerQuestion}s</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={timePerQuestion}
+                            step={0.5}
+                            value={simResponseTimeSec}
+                            onChange={(e) => setSimResponseTimeSec(Number(e.target.value))}
+                            className="w-full h-1.5 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                          />
+                        </div>
+                      )}
+
+                      {/* Base Question Points */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          Question Base Points
+                        </label>
+                        <select
+                          value={simBasePoints}
+                          onChange={(e) => setSimBasePoints(Number(e.target.value))}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-white focus:outline-none text-xs"
+                        >
+                          <option value={500}>500 pts</option>
+                          <option value={1000}>1000 pts</option>
+                          <option value={2000}>2000 pts</option>
+                        </select>
+                      </div>
+
+                      {/* Score breakdown display */}
+                      <div className="border-t border-slate-900 pt-3 mt-1.5 space-y-1.5 text-xs">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Base Points Awarded:</span>
+                          <span className="font-bold text-slate-200">+{simulationResult.baseAwarded}</span>
+                        </div>
+                        {earlySubmitBonusEnabled && (
+                          <div className="flex justify-between text-slate-400">
+                            <span>Early Submit Bonus:</span>
+                            <span className="font-bold text-amber-400">+{simulationResult.earlyBonus}</span>
+                          </div>
+                        )}
+                        {negativeMarkingEnabled && (
+                          <div className="flex justify-between text-slate-400">
+                            <span>Wrong Answer Penalty:</span>
+                            <span className="font-bold text-rose-400">-{simulationResult.penalty}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t border-slate-900 pt-2 font-black text-sm">
+                          <span>Simulated Net Score:</span>
+                          <span className={simulationResult.total > 0 ? 'text-emerald-400' : simulationResult.total < 0 ? 'text-rose-400' : 'text-slate-400'}>
+                            {simulationResult.total > 0 ? `+${simulationResult.total}` : simulationResult.total} pts
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <button
                 type="submit"
                 disabled={isSavingSettings}
-                className="w-full bg-slate-900 hover:bg-indigo-600 border border-slate-800 hover:border-indigo-500 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4"
+                className="w-full bg-slate-900 hover:bg-indigo-650 border border-slate-800 hover:border-indigo-500 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 mt-4"
               >
                 {isSavingSettings ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

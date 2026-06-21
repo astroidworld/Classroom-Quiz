@@ -5,6 +5,7 @@ import {
   HelpCircle, ChevronRight, Volume2, VolumeX, ArrowLeft 
 } from 'lucide-react';
 import { playCorrectSound, playIncorrectSound, getMuteState, toggleMute } from '../utils/audio.js';
+import CodeBlock from '../components/CodeBlock.js';
 
 interface HomeworkQuestion {
   id: string;
@@ -13,6 +14,8 @@ interface HomeworkQuestion {
   imageUrl: string | null;
   type: 'MCQ_SINGLE' | 'TRUE_FALSE';
   timeLimitSec: number;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
   options: { id: string; text: string }[];
 }
 
@@ -318,6 +321,14 @@ export default function StudentHomeworkPlay() {
           {currentQuestion.imageUrl && (
             <div className="max-w-md mx-auto rounded-2xl overflow-hidden border border-slate-800 shadow-glow">
               <img src={currentQuestion.imageUrl} alt="Question graphic" className="w-full h-48 object-cover" />
+            </div>
+          )}
+          {currentQuestion.codeSnippet && (
+            <div className="w-full max-w-3xl mx-auto mt-4 text-left">
+              <CodeBlock 
+                code={currentQuestion.codeSnippet} 
+                language={currentQuestion.codeLanguage || 'text'} 
+              />
             </div>
           )}
         </div>

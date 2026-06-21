@@ -38,6 +38,8 @@ export const addQuestion = async (req: AuthenticatedRequest, res: Response, next
           timeLimitSec: input.timeLimitSec,
           points: input.points,
           explanation: input.explanation,
+          codeSnippet: input.codeSnippet,
+          codeLanguage: input.codeLanguage,
         },
       });
 
@@ -101,6 +103,8 @@ export const updateQuestion = async (req: AuthenticatedRequest, res: Response, n
           timeLimitSec: input.timeLimitSec,
           points: input.points,
           explanation: input.explanation,
+          codeSnippet: input.codeSnippet,
+          codeLanguage: input.codeLanguage,
         },
       });
 

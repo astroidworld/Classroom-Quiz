@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSocketStore } from '../store/socketStore.js';
 import { Volume2, VolumeX, HelpCircle } from 'lucide-react';
+import CodeBlock from '../components/CodeBlock.js';
 
 // Accessibility Shape SVGs
 const TriangleIcon = () => (
@@ -37,7 +38,8 @@ const optionStyles = [
 export default function StudentPlay() {
   const { 
     activeQuestion, questionIndex, totalQuestions, secondsRemaining, 
-    timeLimitSec, submitAnswer, isAnswerLocked, selectedOptionId, isMuted, setMute 
+    timeLimitSec, submitAnswer, selectAnswer, isAnswerLocked, selectedOptionId, 
+    isMuted, setMute, submissionMode 
   } = useSocketStore();
 
   if (!activeQuestion) return null;
@@ -52,6 +54,15 @@ export default function StudentPlay() {
     ? 'bg-yellow-500' 
     : 'bg-indigo-500';
 
+  const handleOptionClick = (optionId: string) => {
+    if (isAnswerLocked) return;
+    if (submissionMode === 'auto') {
+      submitAnswer(optionId);
+    } else {
+      selectAnswer(optionId);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col justify-between text-white p-4">
       {/* Top Header */}
@@ -59,6 +70,9 @@ export default function StudentPlay() {
         <div className="flex items-center gap-3">
           <span className="bg-indigo-500/20 text-indigo-400 text-xs px-2.5 py-1 rounded-lg font-black uppercase tracking-wider">
             Q {questionIndex} / {totalQuestions}
+          </span>
+          <span className="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+            Mode: {submissionMode === 'auto' ? 'Tap to Lock' : 'Select & Submit'}
           </span>
         </div>
 
@@ -99,35 +113,46 @@ export default function StudentPlay() {
               />
             </div>
           )}
+
+          {/* Question Code Snippet (Optional) */}
+          {activeQuestion.codeSnippet && (
+            <div className="w-full max-w-3xl mt-2">
+              <CodeBlock 
+                code={activeQuestion.codeSnippet} 
+                language={activeQuestion.codeLanguage || 'text'} 
+              />
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Bottom Option Grid / locked state overlay */}
+      {/* Bottom Option Grid & Control Panel */}
       <div className="w-full max-w-4xl mx-auto relative min-h-36">
-        {isAnswerLocked ? (
-          /* Locked In waiting screen overlay */
-          <div className="glass-card absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl border-emerald-500/20 bg-slate-950/70 backdrop-blur-[2px] text-center p-6 animate-fade-in shadow-inner">
-            <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-emerald-400 font-extrabold font-display text-lg tracking-wide uppercase">
-              Answer Locked In!
-            </p>
-            <p className="text-slate-400 text-xs font-semibold">
-              Waiting for other players to answer or countdown to expire...
-            </p>
-          </div>
-        ) : null}
-
         {/* Option Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activeQuestion.options.map((opt, idx) => {
             const style = optionStyles[idx] || optionStyles[0];
+            const isSelected = selectedOptionId === opt.id;
+            
+            // Visual highlight classes based on state
+            let highlightClass = '';
+            if (isAnswerLocked) {
+              highlightClass = isSelected 
+                ? 'ring-4 ring-white border-white scale-[1.01] shadow-glow-indigo' 
+                : 'opacity-30 filter grayscale pointer-events-none';
+            } else if (isSelected) {
+              highlightClass = 'ring-4 ring-indigo-400 border-indigo-400 scale-[1.01]';
+            } else if (selectedOptionId !== null) {
+              highlightClass = 'opacity-60';
+            }
+
             return (
               <button
                 key={opt.id}
-                onClick={() => submitAnswer(opt.id)}
+                onClick={() => handleOptionClick(opt.id)}
                 disabled={isAnswerLocked}
                 aria-label={`Option ${idx + 1}: ${opt.text}`}
-                className={`w-full rounded-2xl border-b-4 ${style.bg} ${style.border} px-6 py-5 flex items-center gap-4 text-left transition-all active:scale-[0.98] select-none`}
+                className={`w-full rounded-2xl border-b-4 ${style.bg} ${style.border} px-6 py-5 flex items-center gap-4 text-left transition-all active:scale-[0.98] select-none ${highlightClass}`}
               >
                 {style.icon}
                 <span className="font-display font-black text-xl tracking-tight leading-none">
@@ -137,6 +162,26 @@ export default function StudentPlay() {
             );
           })}
         </div>
+
+        {/* Manual Submit Button */}
+        {submissionMode === 'manual' && selectedOptionId && !isAnswerLocked && (
+          <button
+            onClick={() => submitAnswer(null)}
+            className="w-full mt-5 py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 border-b-4 border-indigo-700 text-white font-black uppercase tracking-wider shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          >
+            Submit Answer
+          </button>
+        )}
+
+        {/* Locked Pending Status Banner */}
+        {isAnswerLocked && (
+          <div className="w-full mt-5 py-4 px-6 glass-panel border-indigo-550/20 bg-indigo-950/25 rounded-2xl flex items-center justify-center gap-3 animate-pulse">
+            <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-indigo-400 font-extrabold text-sm uppercase tracking-wider text-center">
+              Submitted ✓ Answer Locked In — Waiting for host to reveal...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { QuestionDto, OptionDto } from '@classroom-quiz/shared';
 import { Save, X, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import CodeBlock from './CodeBlock.js';
 
 interface QuestionFormProps {
   question?: QuestionDto | null;
@@ -26,6 +27,27 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [hasCode, setHasCode] = useState(false);
+  const [codeSnippet, setCodeSnippet] = useState('');
+  const [codeLanguage, setCodeLanguage] = useState('text');
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const target = e.currentTarget;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+
+      const val = target.value;
+      const newValue = val.substring(0, start) + "  " + val.substring(end);
+      setCodeSnippet(newValue);
+
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 2;
+      }, 0);
+    }
+  };
+
   // Initialize fields if editing an existing question
   useEffect(() => {
     if (question) {
@@ -36,6 +58,9 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
       setPoints(question.points);
       setExplanation(question.explanation || '');
       setOptions(question.options.map(o => ({ text: o.text, isCorrect: o.isCorrect })));
+      setHasCode(!!question.codeSnippet);
+      setCodeSnippet(question.codeSnippet || '');
+      setCodeLanguage(question.codeLanguage || 'text');
       setError(null);
     } else {
       // Defaults
@@ -51,6 +76,9 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
         { text: '', isCorrect: false },
         { text: '', isCorrect: false },
       ]);
+      setHasCode(false);
+      setCodeSnippet('');
+      setCodeLanguage('text');
       setError(null);
     }
   }, [question]);
@@ -133,6 +161,8 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
         points: Number(points),
         explanation: explanation.trim() || null,
         options,
+        codeSnippet: hasCode ? codeSnippet : null,
+        codeLanguage: hasCode ? codeLanguage : null,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to save question.');
@@ -177,6 +207,80 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
             placeholder="e.g. Which selector is used to target element classes in CSS?"
             className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder:text-slate-600 resize-none"
           />
+
+          <div className="mt-4">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <input
+                type="checkbox"
+                checked={hasCode}
+                onChange={(e) => setHasCode(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-800 bg-slate-900 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-950"
+              />
+              Add Code Snippet
+            </label>
+          </div>
+
+          {hasCode && (
+            <div className="mt-4 space-y-3 animate-fade-in">
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Code Snippet Language
+                </label>
+                <select
+                  value={codeLanguage}
+                  onChange={(e) => setCodeLanguage(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="text">Plain Text</option>
+                  <option value="python">Python</option>
+                  <option value="javascript">JavaScript</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="java">Java</option>
+                  <option value="c">C</option>
+                  <option value="cpp">C++</option>
+                  <option value="html">HTML</option>
+                  <option value="css">CSS</option>
+                  <option value="sql">SQL</option>
+                  <option value="go">Go</option>
+                  <option value="rust">Rust</option>
+                  <option value="php">PHP</option>
+                  <option value="ruby">Ruby</option>
+                  <option value="bash">Bash</option>
+                </select>
+              </div>
+
+              <div className="flex bg-slate-900 border border-slate-800 rounded-xl overflow-hidden font-mono text-sm leading-6">
+                <div className="select-none text-right pr-3.5 pl-3 py-3 text-slate-600 bg-slate-950/40 border-r border-slate-850 flex flex-col">
+                  {Array.from({ length: Math.max(6, codeSnippet.split('\n').length) }).map((_, i) => (
+                    <span key={i} className="h-6 block">{i + 1}</span>
+                  ))}
+                </div>
+                <textarea
+                  rows={Math.max(6, codeSnippet.split('\n').length)}
+                  value={codeSnippet}
+                  onChange={(e) => setCodeSnippet(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Write or paste your code snippet here..."
+                  className="w-full bg-transparent px-4 py-3 text-white focus:outline-none font-mono whitespace-pre overflow-x-auto leading-6 resize-none"
+                  style={{ tabSize: 2, MozTabSize: 2 }}
+                />
+              </div>
+
+              {codeSnippet.trim() && (
+                <div className="mt-3">
+                  <span className="block text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-2">Live Preview</span>
+                  <CodeBlock 
+                    code={codeSnippet} 
+                    language={codeLanguage} 
+                    showLineNumbers={true}
+                    maxHeight="200px"
+                    showCopyButton={false}
+                    showLanguageBadge={true}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -221,6 +325,7 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
                 max={300}
                 value={timeLimitSec || ''}
                 onChange={(e) => setTimeLimitSec(e.target.value ? Number(e.target.value) : null)}
+                onWheel={(e) => e.currentTarget.blur()}
                 placeholder="Default"
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium placeholder:text-slate-600 text-sm"
               />
@@ -235,6 +340,7 @@ export default function QuestionForm({ question, onSave, onCancel }: QuestionFor
                 max={10000}
                 value={points}
                 onChange={(e) => setPoints(Number(e.target.value))}
+                onWheel={(e) => e.currentTarget.blur()}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
               />
             </div>

@@ -35,6 +35,20 @@ export interface QuizSettingsDto {
   shuffleOptions: boolean;
   showLeaderboardBetweenQuestions: boolean;
   allowLateJoin: boolean;
+  submissionMode: 'auto' | 'manual';
+  earlySubmitBonus: {
+    enabled: boolean;
+    maxBonusPoints: number;
+  };
+  negativeMarking: {
+    enabled: boolean;
+    mode: 'fixed' | 'percentage';
+    value: number;
+  };
+  resultScreenDuration: {
+    correctSec: number;
+    incorrectSec: number;
+  };
 }
 
 export interface OptionDto {
@@ -52,6 +66,8 @@ export interface QuestionDto {
   timeLimitSec: number | null;
   points: number;
   explanation: string | null;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
   options: OptionDto[];
 }
 
@@ -142,6 +158,8 @@ export interface QuestionAnalysisDto {
   accuracy: number;
   avgResponseTimeSec: number;
   mostMissed: boolean;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
   optionsDistribution: {
     id: string;
     text: string;
@@ -161,6 +179,9 @@ export interface ResponseMatrixCellDto {
   isCorrect: boolean | null;
   responseTimeSec: number | null;
   selectedOptionText: string | null;
+  pointsAwarded?: number | null;
+  earlyBonus?: number | null;
+  penalty?: number | null;
 }
 
 export interface ResponseMatrixRowDto {
@@ -188,6 +209,8 @@ export interface StudentDrilldownDto {
     isCorrect: boolean;
     responseTimeSec: number;
     pointsAwarded: number;
+    earlyBonus: number;
+    penalty: number;
   }[];
 }
 

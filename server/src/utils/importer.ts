@@ -6,6 +6,9 @@ export interface ParsedQuestion {
   timeLimitSec: number | null;
   points: number;
   explanation?: string | null;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
+  codePreview?: string | null;
   options: { text: string; isCorrect: boolean }[];
 }
 
@@ -31,6 +34,11 @@ const REQUIRED_HEADERS = [
   'correct_option',
   'time_limit',
   'points'
+];
+
+const SUPPORTED_LANGUAGES = [
+  'python', 'javascript', 'typescript', 'java', 'c', 'cpp', 
+  'html', 'css', 'sql', 'go', 'rust', 'php', 'ruby', 'bash', 'text'
 ];
 
 /**
@@ -64,6 +72,10 @@ export const validateCSV = (csvContent: string): { error?: string; report?: Vali
     const correctLetter = (row.correct_option || '').trim().toUpperCase();
     const timeLimitStr = (row.time_limit || '').trim();
     const pointsStr = (row.points || '').trim();
+
+    // Code Snippet & Language Fields (Optional)
+    const codeSnippetRaw = row.code_snippet; 
+    const codeLanguageRaw = row.code_language ? row.code_language.trim().toLowerCase() : null;
 
     const rowErrors: string[] = [];
 
@@ -127,6 +139,27 @@ export const validateCSV = (csvContent: string): { error?: string; report?: Vali
       }
     }
 
+    // Parse code block
+    let codeSnippet: string | null = null;
+    let codeLanguage: string | null = null;
+    let codePreview: string | null = null;
+
+    if (codeSnippetRaw && codeSnippetRaw.length > 0) {
+      codeSnippet = codeSnippetRaw; // Indentation preserved
+      if (codeLanguageRaw) {
+        if (SUPPORTED_LANGUAGES.includes(codeLanguageRaw)) {
+          codeLanguage = codeLanguageRaw;
+        } else {
+          codeLanguage = 'text'; // Default to text
+        }
+      } else {
+        codeLanguage = 'text';
+      }
+
+      const snippetLines = codeSnippet.split('\n');
+      codePreview = snippetLines.slice(0, 2).join('\n') + (snippetLines.length > 2 ? '\n...' : '');
+    }
+
     if (rowErrors.length > 0) {
       errors.push({
         row: rowNum,
@@ -140,6 +173,9 @@ export const validateCSV = (csvContent: string): { error?: string; report?: Vali
         timeLimitSec,
         points,
         options,
+        codeSnippet,
+        codeLanguage,
+        codePreview,
         explanation: null
       });
     }
@@ -156,36 +192,101 @@ export const validateCSV = (csvContent: string): { error?: string; report?: Vali
 };
 
 /**
+ * Splits bulk paste string into blocks respecting backtick code fences.
+ */
+export const splitBulkPasteIntoBlocks = (text: string): string[] => {
+  const lines = text.split(/\r?\n/);
+  const blocks: string[] = [];
+  let currentBlock: string[] = [];
+  let inCode = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      inCode = !inCode;
+    }
+
+    if (!inCode && trimmed === '') {
+      if (currentBlock.length > 0) {
+        blocks.push(currentBlock.join('\n'));
+        currentBlock = [];
+      }
+    } else {
+      currentBlock.push(line);
+    }
+  }
+
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock.join('\n'));
+  }
+
+  return blocks.map(b => b.trim()).filter(b => b.length > 0);
+};
+
+/**
  * Validates and parses bulk paste plain text.
  */
 export const validateBulkPaste = (text: string): ValidationReport => {
   const validQuestions: ParsedQuestion[] = [];
   const errors: ImportErrorRow[] = [];
 
-  // Split into blocks separated by blank lines
-  const blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(b => b.length > 0);
+  const blocks = splitBulkPasteIntoBlocks(text);
 
   blocks.forEach((block, index) => {
     const blockNum = index + 1;
-    const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    // Check for fenced code block ```
+    const backtickStart = block.indexOf('```');
+    const backtickEnd = block.lastIndexOf('```');
 
-    if (lines.length < 3) {
-      errors.push({
-        row: blockNum,
-        questionText: lines[0] || `[Block ${blockNum} Empty]`,
-        errors: ['A question block must contain a question and at least two options.']
-      });
-      return;
+    let questionText = '';
+    let codeSnippet: string | null = null;
+    let codeLanguage: string | null = null;
+    let codePreview: string | null = null;
+    let optionLines: string[] = [];
+
+    if (backtickStart !== -1 && backtickEnd !== -1 && backtickEnd > backtickStart) {
+      questionText = block.substring(0, backtickStart).trim();
+
+      const snippetContent = block.substring(backtickStart + 3, backtickEnd);
+      const firstNewlineIndex = snippetContent.indexOf('\n');
+      
+      let rawSnippet = '';
+      if (firstNewlineIndex !== -1) {
+        const lang = snippetContent.substring(0, firstNewlineIndex).trim().toLowerCase();
+        codeLanguage = lang && SUPPORTED_LANGUAGES.includes(lang) ? lang : 'text';
+        rawSnippet = snippetContent.substring(firstNewlineIndex + 1);
+      } else {
+        codeLanguage = 'text';
+        rawSnippet = snippetContent;
+      }
+      
+      codeSnippet = rawSnippet; // Indentation preserved
+
+      const snippetLines = codeSnippet.split('\n');
+      codePreview = snippetLines.slice(0, 2).join('\n') + (snippetLines.length > 2 ? '\n...' : '');
+
+      const optionsPart = block.substring(backtickEnd + 3);
+      optionLines = optionsPart.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    } else {
+      const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 3) {
+        errors.push({
+          row: blockNum,
+          questionText: lines[0] || `[Block ${blockNum} Empty]`,
+          errors: ['A question block must contain a question and at least two options.']
+        });
+        return;
+      }
+      questionText = lines[0];
+      optionLines = lines.slice(1);
     }
 
-    const questionText = lines[0];
-    const optionLines = lines.slice(1);
     const rowErrors: string[] = [];
     const options: { text: string; isCorrect: boolean }[] = [];
 
     // Parse options
     optionLines.forEach((line) => {
-      // Matches lines like: *A) OptionText or B. OptionText or *True
       const optionRegex = /^(\*?)\s*(?:([A-F]|[a-f])[\).]\s*)?(.*)$/;
       const match = line.match(optionRegex);
 
@@ -193,7 +294,6 @@ export const validateBulkPaste = (text: string): ValidationReport => {
         const isCorrect = match[1] === '*';
         let optionText = match[3].trim();
         
-        // In case there is no letter prefix, but just the option text (e.g. *True)
         if (!optionText && match[2]) {
           optionText = match[2];
         }
@@ -236,6 +336,9 @@ export const validateBulkPaste = (text: string): ValidationReport => {
         timeLimitSec: null, // Default
         points: 1000,
         options,
+        codeSnippet,
+        codeLanguage,
+        codePreview,
         explanation: null
       });
     }

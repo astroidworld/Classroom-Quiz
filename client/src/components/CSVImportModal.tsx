@@ -164,10 +164,10 @@ export default function CSVImportModal({ quizId, onClose, onSuccess }: CSVImport
                   Your CSV file columns must match the following template exactly:
                 </p>
                 <div className="bg-slate-950 p-3 rounded-lg text-slate-300 font-mono text-[10px] overflow-x-auto select-all border border-slate-850">
-                  question,option_a,option_b,option_c,option_d,correct_option,time_limit,points
+                  question,option_a,option_b,option_c,option_d,correct_option,time_limit,points,code_snippet,code_language
                 </div>
                 <p className="text-slate-500 text-[11px] font-medium italic">
-                  * Note: correct_option letters must match options (A, B, C, or D). option_c and option_d can be left empty for True/False questions.
+                  * Note: correct_option letters must match options (A, B, C, or D). option_c, option_d, code_snippet, and code_language can be left empty.
                 </p>
               </div>
             </div>
@@ -215,6 +215,12 @@ export default function CSVImportModal({ quizId, onClose, onSuccess }: CSVImport
                         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                         <div className="space-y-1.5">
                           <p className="font-bold text-white text-sm">{q.text}</p>
+                          {q.codeSnippet && (
+                            <div className="mt-2 p-2 bg-slate-950/80 rounded border border-slate-850 font-mono text-[10px] text-slate-400 whitespace-pre overflow-x-auto leading-relaxed max-w-full">
+                              <span className="text-indigo-400 font-bold block mb-1">[{q.codeLanguage.toUpperCase()}] Preview:</span>
+                              {q.codePreview}
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-2 pt-1.5">
                             {q.options.map((opt: any, oIdx: number) => (
                               <span 

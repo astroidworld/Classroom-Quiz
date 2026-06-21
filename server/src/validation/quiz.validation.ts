@@ -11,6 +11,20 @@ export const createQuizSchema = z.object({
     shuffleOptions: z.boolean().default(false),
     showLeaderboardBetweenQuestions: z.boolean().default(true),
     allowLateJoin: z.boolean().default(true),
+    submissionMode: z.enum(['auto', 'manual']).default('manual'),
+    earlySubmitBonus: z.object({
+      enabled: z.boolean().default(false),
+      maxBonusPoints: z.number().int().min(0).max(1000).default(50),
+    }).default({ enabled: false, maxBonusPoints: 50 }),
+    negativeMarking: z.object({
+      enabled: z.boolean().default(false),
+      mode: z.enum(['fixed', 'percentage']).default('fixed'),
+      value: z.number().min(0).max(1000).default(25),
+    }).default({ enabled: false, mode: 'fixed', value: 25 }),
+    resultScreenDuration: z.object({
+      correctSec: z.number().int().min(1).max(30).default(3),
+      incorrectSec: z.number().int().min(1).max(30).default(3),
+    }).default({ correctSec: 3, incorrectSec: 3 }),
   }).default({}),
 });
 
@@ -24,6 +38,20 @@ export const updateQuizSchema = z.object({
     shuffleOptions: z.boolean().optional(),
     showLeaderboardBetweenQuestions: z.boolean().optional(),
     allowLateJoin: z.boolean().optional(),
+    submissionMode: z.enum(['auto', 'manual']).optional(),
+    earlySubmitBonus: z.object({
+      enabled: z.boolean().optional(),
+      maxBonusPoints: z.number().int().min(0).max(1000).optional(),
+    }).optional(),
+    negativeMarking: z.object({
+      enabled: z.boolean().optional(),
+      mode: z.enum(['fixed', 'percentage']).optional(),
+      value: z.number().min(0).max(1000).optional(),
+    }).optional(),
+    resultScreenDuration: z.object({
+      correctSec: z.number().int().min(1).max(30).optional(),
+      incorrectSec: z.number().int().min(1).max(30).optional(),
+    }).optional(),
   }).optional(),
 });
 
@@ -40,6 +68,8 @@ const questionBaseObject = z.object({
   timeLimitSec: z.number().int().min(5).max(300).optional().nullable(),
   points: z.number().int().min(0).max(10000).default(1000),
   explanation: z.string().max(1000, 'Explanation is too long').optional().nullable(),
+  codeSnippet: z.string().optional().nullable(),
+  codeLanguage: z.string().optional().nullable(),
   options: z.array(optionSchema).min(2, 'At least two options are required').max(6, 'At most six options are allowed'),
 });
 

@@ -4,6 +4,7 @@ import {
   HelpCircle, ChevronLeft, ChevronRight, CheckCircle2, 
   ArrowLeft, Info, AlertCircle 
 } from 'lucide-react';
+import CodeBlock from '../components/CodeBlock.js';
 
 interface ReviewOption {
   id: string;
@@ -18,6 +19,8 @@ interface ReviewQuestion {
   imageUrl: string | null;
   type: 'MCQ_SINGLE' | 'TRUE_FALSE';
   explanation: string | null;
+  codeSnippet?: string | null;
+  codeLanguage?: string | null;
   options: ReviewOption[];
 }
 
@@ -130,7 +133,7 @@ export default function StudentReview() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-6 py-8 flex flex-col justify-center space-y-6">
         
         {/* Progress Dots */}
-        <div className="flex justify-center gap-1.5 select-none overflow-x-auto py-1">
+        <div className="flex justify-center gap-1.5 select-none overflow-x-auto py-1 scrollbar-none">
           {questions.map((_, idx) => (
             <button
               key={idx}
@@ -152,6 +155,14 @@ export default function StudentReview() {
           {currentQuestion.imageUrl && (
             <div className="max-w-sm mx-auto rounded-2xl overflow-hidden border border-slate-850 shadow-md">
               <img src={currentQuestion.imageUrl} alt="Question Graphic" className="w-full h-40 object-cover" />
+            </div>
+          )}
+          {currentQuestion.codeSnippet && (
+            <div className="w-full max-w-3xl mx-auto mt-4 text-left">
+              <CodeBlock 
+                code={currentQuestion.codeSnippet} 
+                language={currentQuestion.codeLanguage || 'text'} 
+              />
             </div>
           )}
         </div>

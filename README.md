@@ -43,10 +43,10 @@ A production-quality live real-time quiz competition platform for classrooms.
 
 ### 1. CSV Importer Format
 
-CSV uploads must match the following headers exactly (case-sensitive):
+CSV uploads can match either standard columns or include optional code snippet columns (case-sensitive):
 
 ```csv
-question,option_a,option_b,option_c,option_d,correct_option,time_limit,points
+question,option_a,option_b,option_c,option_d,correct_option,time_limit,points,code_snippet,code_language
 ```
 
 #### Fields Details:
@@ -58,13 +58,14 @@ question,option_a,option_b,option_c,option_d,correct_option,time_limit,points
 * **`correct_option`** (Required): The letter of the correct answer. Must be one of: `A`, `B`, `C`, or `D` (case-insensitive).
 * **`time_limit`** (Optional): Integer overrides representing answer timer length in seconds.
 * **`points`** (Optional): Point weighting for the question (defaults to 1000).
+* **`code_snippet`** (Optional): Multi-line code block (should be wrapped in double quotes in standard CSV to preserve newlines and indentation).
+* **`code_language`** (Optional): The language name for syntax highlighting (e.g. `javascript`, `python`, `html`, `css`, `java`, `c`, `cpp`, `sql`, `go`, `rust`, `php`, `ruby`, `bash`, `text`).
 
 #### Example CSV Content:
 ```csv
-question,option_a,option_b,option_c,option_d,correct_option,time_limit,points
-Which HTML tag is used for the largest heading?,<h1>,<h6>,<head>,<heading>,A,20,1000
-CSS stands for Cascading Style Sheets.,True,False,,,A,15,800
-Which property is used to change background color?,color,background-color,bgcolor,background,B,,1000
+question,option_a,option_b,option_c,option_d,correct_option,time_limit,points,code_snippet,code_language
+Which HTML tag is used for the largest heading?,<h1>,<h6>,<head>,<heading>,A,20,1000,,
+What does this python code print?,"print(""Hello "" + ""World"")",Hello,World,HelloWorld,Hello World,C,,1000,"print(""Hello "" + ""World"")",python
 ```
 
 ---
@@ -74,8 +75,9 @@ Which property is used to change background color?,color,background-color,bgcolo
 Plain text block parsed by line breaks. Format rules:
 1. One blank line separates individual questions.
 2. The first line of each block is the question text.
-3. Subsequent lines represent choices, prefixed by a letter and closing parenthesis `A)`, `B)`, `C)`, `D)`.
-4. The correct choice is marked with an asterisk `*` prefix.
+3. An optional code block can be embedded immediately below the question text using triple backticks: ` ```language ` and ending with ` ``` `.
+4. Subsequent lines represent choices, prefixed by a letter and closing parenthesis `A)`, `B)`, `C)`, `D)`.
+5. The correct choice is marked with an asterisk `*` prefix.
 
 #### Example Paste Text:
 ```text
@@ -85,9 +87,15 @@ A) . (dot)
 C) * (asterisk)
 D) @ (at)
 
-A <div> element is inline by default.
-A) True
-*B) False
+What will the following code output?
+```javascript
+let a = 5;
+console.log(a + 2);
+```
+A) 5
+*B) 7
+C) 52
+D) undefined
 
 Which tag is used to create a hyperlink?
 *A) <a>

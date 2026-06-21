@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { ParticipantDto, PlayerQuestionDto, LeaderboardEntryDto } from '@classroom-quiz/shared';
 import { playCorrectSound, playIncorrectSound, getMuteState, toggleMute } from '../utils/audio.js';
 
-type ViewState = 'JOIN' | 'LOBBY' | 'PLAY' | 'QUESTION_LOCK' | 'LEADERBOARD' | 'PODIUM';
+type ViewState = 'JOIN' | 'LOBBY' | 'PLAY' | 'QUESTION_LOCK' | 'QUESTION_REVEAL' | 'LEADERBOARD' | 'PODIUM';
 
 interface SocketState {
   socket: Socket | null;
@@ -33,6 +33,10 @@ interface SocketState {
     streak: number;
   } | null;
 
+  submissionMode: 'auto' | 'manual';
+  isAnswerRevealed: boolean;
+  revealPayload: any | null;
+
   leaderboard: LeaderboardEntryDto[];
   podium: LeaderboardEntryDto[];
   
@@ -42,7 +46,8 @@ interface SocketState {
 
   initializeConnection: () => void;
   joinRoom: (roomCode: string, displayName: string) => void;
-  submitAnswer: (optionId: string) => void;
+  selectAnswer: (optionId: string) => void;
+  submitAnswer: (optionId: string | null) => void;
   reconnectSession: (roomCode: string, participantId: string) => void;
   setMute: (mute: boolean) => void;
   resetGame: () => void;
@@ -50,6 +55,7 @@ interface SocketState {
 
 export const useSocketStore = create<SocketState>((set, get) => {
   let timerInterval: any = null;
+  let revealTimer: any = null;
 
   const startLocalCountdown = (limitSec: number, startTs: number) => {
     if (timerInterval) clearInterval(timerInterval);
@@ -89,6 +95,10 @@ export const useSocketStore = create<SocketState>((set, get) => {
     correctOptionId: null,
     explanation: null,
     scoreResult: null,
+
+    submissionMode: 'manual',
+    isAnswerRevealed: false,
+    revealPayload: null,
 
     leaderboard: [],
     podium: [],
@@ -159,6 +169,7 @@ export const useSocketStore = create<SocketState>((set, get) => {
       });
 
       socketInstance.on('question:show', (payload: any) => {
+        if (revealTimer) clearTimeout(revealTimer);
         set({
           activeQuestion: payload.question,
           questionIndex: payload.questionIndex,
@@ -170,6 +181,9 @@ export const useSocketStore = create<SocketState>((set, get) => {
           correctOptionId: null,
           explanation: null,
           scoreResult: null,
+          submissionMode: payload.submissionMode || 'manual',
+          isAnswerRevealed: false,
+          revealPayload: null,
           viewState: 'PLAY',
           error: null,
         });
@@ -180,14 +194,63 @@ export const useSocketStore = create<SocketState>((set, get) => {
       socketInstance.on('question:lock', (payload: any) => {
         if (timerInterval) clearInterval(timerInterval);
         set({
-          correctOptionId: payload.correctOptionId,
-          explanation: payload.explanation,
           viewState: 'QUESTION_LOCK',
           secondsRemaining: 0,
         });
       });
 
+      socketInstance.on('question:reveal', (payload: any) => {
+        if (revealTimer) clearTimeout(revealTimer);
+        
+        set({
+          isAnswerRevealed: true,
+          revealPayload: payload,
+          viewState: 'QUESTION_REVEAL',
+        });
+
+        // Trigger sounds/vibrations based on correctness
+        if (payload.isCorrect && !payload.isUnanswered) {
+          playCorrectSound();
+          if (navigator.vibrate) {
+            navigator.vibrate(80);
+          }
+        } else {
+          playIncorrectSound();
+          if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+          }
+        }
+
+        // Auto-transition to leaderboard or waiting
+        revealTimer = setTimeout(() => {
+          // If scoreboard between questions is enabled, move to scoreboard.
+          // Wait, the host will emit leaderboard:update which updates the client's viewState anyway,
+          // but we can transition locally to LEADERBOARD or just wait.
+          // Let's transition to LEADERBOARD if applicable.
+          // Wait, where do we get this setting? We can check payload.showLeaderboardBetweenQuestions (we should make sure the server sends it).
+          // Yes, let's assume if the host has it enabled they will broadcast leaderboard:update.
+          // We can transition to a wait screen if it's off.
+          // To be safe, if we transition locally:
+          // If showLeaderboard is false, we stay in a "Waiting" mode.
+          // Let's just update the viewState accordingly:
+          // if (payload.showLeaderboardBetweenQuestions) viewState -> LEADERBOARD. Else -> QUESTION_LOCK.
+          // Wait, let's make sure the server payload has showLeaderboardBetweenQuestions!
+          // We'll update the server reveal payload to send it!
+          set((state) => ({
+            viewState: payload.showLeaderboardBetweenQuestions ? 'LEADERBOARD' : 'QUESTION_LOCK'
+          }));
+        }, payload.resultScreenDurationMs);
+      });
+
+      socketInstance.on('question:reveal:host', (payload: any) => {
+        set({
+          isAnswerRevealed: true,
+          revealPayload: payload,
+        });
+      });
+
       socketInstance.on('answer:result', (payload: any) => {
+        // Maintained for backward compatibility (e.g. homework/legacy paths)
         set({
           scoreResult: {
             questionId: payload.questionId,
@@ -197,32 +260,27 @@ export const useSocketStore = create<SocketState>((set, get) => {
             streak: payload.streak,
           },
         });
-
-        // Trigger bells/vibrations based on response correctness
-        if (payload.isCorrect) {
-          playCorrectSound();
-          if (navigator.vibrate) {
-            navigator.vibrate(80); // Short pulse on mobile
-          }
-        } else {
-          playIncorrectSound();
-          if (navigator.vibrate) {
-            navigator.vibrate([100, 50, 100]); // Buzz pulse
-          }
-        }
       });
 
       socketInstance.on('leaderboard:update', (payload: any) => {
-        set({ 
-          leaderboard: payload.leaderboard,
-          viewState: 'LEADERBOARD' 
-        });
+        // Don't transition immediately if we are currently showing a reveal screen!
+        // The reveal screen auto-transitions to leaderboard when its timer expires.
+        const currentViewState = get().viewState;
+        if (currentViewState !== 'QUESTION_REVEAL') {
+          set({ 
+            leaderboard: payload.leaderboard,
+            viewState: 'LEADERBOARD' 
+          });
+        } else {
+          // Just save the leaderboard data for later
+          set({ leaderboard: payload.leaderboard });
+        }
       });
 
       socketInstance.on('session:ended', (payload: any) => {
         if (timerInterval) clearInterval(timerInterval);
+        if (revealTimer) clearTimeout(revealTimer);
         
-        // Remove active local storage entries since quiz is completed
         localStorage.removeItem('quiz_room_code');
         localStorage.removeItem('quiz_participant_id');
         
@@ -233,22 +291,36 @@ export const useSocketStore = create<SocketState>((set, get) => {
       });
 
       socketInstance.on('session:sync', (payload: any) => {
+        if (revealTimer) clearTimeout(revealTimer);
+
         set({
           viewState: payload.status === 'LOBBY' ? 'LOBBY' : 
                      payload.status === 'ENDED' ? 'PODIUM' : 
+                     payload.isAnswerRevealed ? 'QUESTION_REVEAL' :
                      payload.hasAnsweredActiveQuestion ? 'QUESTION_LOCK' : 'PLAY',
           questionIndex: payload.currentQuestionIndex,
           totalQuestions: payload.totalQuestions,
           isAnswerLocked: payload.hasAnsweredActiveQuestion,
           activeQuestion: payload.activeQuestion || null,
           secondsRemaining: payload.secondsRemaining || 0,
+          submissionMode: payload.submissionMode || 'manual',
+          isAnswerRevealed: payload.isAnswerRevealed || false,
+          revealPayload: payload.lastRevealPayload || null,
           error: null,
         });
 
         if (payload.activeQuestion && payload.secondsRemaining && !payload.hasAnsweredActiveQuestion) {
-          // Restart countdown based on remaining seconds
           const startTs = Date.now() - (payload.activeQuestion.timeLimitSec - payload.secondsRemaining) * 1000;
           startLocalCountdown(payload.activeQuestion.timeLimitSec, startTs);
+        }
+
+        // If synced into QUESTION_REVEAL, start local countdown timer
+        if (payload.isAnswerRevealed && payload.lastRevealPayload) {
+          revealTimer = setTimeout(() => {
+            set({
+              viewState: payload.lastRevealPayload.showLeaderboardBetweenQuestions ? 'LEADERBOARD' : 'QUESTION_LOCK'
+            });
+          }, payload.lastRevealPayload.resultScreenDurationMs);
         }
       });
 
@@ -263,13 +335,23 @@ export const useSocketStore = create<SocketState>((set, get) => {
       socket.emit('player:join', { roomCode, displayName });
     },
 
+    selectAnswer: (optionId) => {
+      const { socket, roomCode, activeQuestion, isAnswerLocked, submissionMode } = get();
+      if (!socket || !roomCode || !activeQuestion || isAnswerLocked || submissionMode === 'auto') return;
+
+      set({ selectedOptionId: optionId });
+      socket.emit('player:select', { roomCode, questionId: activeQuestion.id, optionId });
+    },
+
     submitAnswer: (optionId) => {
-      const { socket, roomCode, activeQuestion, isAnswerLocked } = get();
+      const { socket, roomCode, activeQuestion, isAnswerLocked, selectedOptionId, submissionMode } = get();
       if (!socket || !roomCode || !activeQuestion || isAnswerLocked) return;
 
-      // Optimistically lock answer selection
-      set({ isAnswerLocked: true, selectedOptionId: optionId });
-      socket.emit('player:answer', { roomCode, questionId: activeQuestion.id, optionId });
+      const finalOptionId = optionId || selectedOptionId;
+      if (!finalOptionId) return;
+
+      set({ isAnswerLocked: true, selectedOptionId: finalOptionId });
+      socket.emit('player:submit', { roomCode, questionId: activeQuestion.id, optionId: finalOptionId });
     },
 
     reconnectSession: (roomCode, participantId) => {
@@ -285,6 +367,7 @@ export const useSocketStore = create<SocketState>((set, get) => {
 
     resetGame: () => {
       if (timerInterval) clearInterval(timerInterval);
+      if (revealTimer) clearTimeout(revealTimer);
       localStorage.removeItem('quiz_room_code');
       localStorage.removeItem('quiz_participant_id');
       set({
@@ -302,6 +385,9 @@ export const useSocketStore = create<SocketState>((set, get) => {
         correctOptionId: null,
         explanation: null,
         scoreResult: null,
+        submissionMode: 'manual',
+        isAnswerRevealed: false,
+        revealPayload: null,
         leaderboard: [],
         podium: [],
         error: null,

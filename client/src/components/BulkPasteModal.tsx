@@ -118,6 +118,10 @@ export default function BulkPasteModal({ quizId, onClose, onSuccess }: BulkPaste
                   </li>
                   <li className="flex gap-2">
                     <ChevronRight className="w-4 h-4 shrink-0 text-indigo-500" />
+                    <span>Include optional code snippet using triple backticks (e.g. <code>```python</code>...<code>```</code>) inside the question text block.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <ChevronRight className="w-4 h-4 shrink-0 text-indigo-500" />
                     <span>Options must start with letter prefixes: <code>A)</code> or <code>A.</code>.</span>
                   </li>
                   <li className="flex gap-2">
@@ -175,6 +179,12 @@ export default function BulkPasteModal({ quizId, onClose, onSuccess }: BulkPaste
                         <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                         <div className="space-y-1.5">
                           <p className="font-bold text-white text-sm">{q.text}</p>
+                          {q.codeSnippet && (
+                            <div className="mt-2 p-2 bg-slate-950/80 rounded border border-slate-800 font-mono text-[10px] text-slate-400 whitespace-pre overflow-x-auto leading-relaxed max-w-full">
+                              <span className="text-indigo-400 font-bold block mb-1">[{q.codeLanguage.toUpperCase()}] Preview:</span>
+                              {q.codePreview}
+                            </div>
+                          )}
                           <div className="flex flex-wrap gap-2 pt-1.5">
                             {q.options.map((opt: any, oIdx: number) => (
                               <span 

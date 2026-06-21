@@ -9,6 +9,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
  */
 const mapQuizToDto = (quiz: any) => {
   if (!quiz) return null;
+  const dbSettings = typeof quiz.settings === 'string' ? JSON.parse(quiz.settings) : (quiz.settings || {});
   return {
     id: quiz.id,
     hostId: quiz.hostId,
@@ -22,6 +23,10 @@ const mapQuizToDto = (quiz: any) => {
       shuffleOptions: quiz.shuffleOptions,
       showLeaderboardBetweenQuestions: quiz.showLeaderboardBetweenQuestions,
       allowLateJoin: quiz.allowLateJoin,
+      submissionMode: dbSettings.submissionMode || 'manual',
+      earlySubmitBonus: dbSettings.earlySubmitBonus || { enabled: false, maxBonusPoints: 50 },
+      negativeMarking: dbSettings.negativeMarking || { enabled: false, mode: 'fixed', value: 25 },
+      resultScreenDuration: dbSettings.resultScreenDuration || { correctSec: 3, incorrectSec: 3 },
     },
     questions: quiz.questions,
     _count: quiz._count,
@@ -67,6 +72,12 @@ export const createQuiz = async (req: AuthenticatedRequest, res: Response, next:
         shuffleOptions: input.settings.shuffleOptions,
         showLeaderboardBetweenQuestions: input.settings.showLeaderboardBetweenQuestions,
         allowLateJoin: input.settings.allowLateJoin,
+        settings: {
+          submissionMode: input.settings.submissionMode,
+          earlySubmitBonus: input.settings.earlySubmitBonus,
+          negativeMarking: input.settings.negativeMarking,
+          resultScreenDuration: input.settings.resultScreenDuration,
+        },
       },
     });
 
@@ -138,6 +149,37 @@ export const updateQuiz = async (req: AuthenticatedRequest, res: Response, next:
         updateData.showLeaderboardBetweenQuestions = input.settings.showLeaderboardBetweenQuestions;
       }
       if (input.settings.allowLateJoin !== undefined) updateData.allowLateJoin = input.settings.allowLateJoin;
+
+      // Merge JSON settings
+      const currentJsonSettings = typeof existingQuiz.settings === 'string'
+        ? JSON.parse(existingQuiz.settings)
+        : (existingQuiz.settings || {});
+
+      const newJsonSettings = {
+        ...currentJsonSettings,
+      };
+
+      if (input.settings.submissionMode !== undefined) newJsonSettings.submissionMode = input.settings.submissionMode;
+      if (input.settings.earlySubmitBonus !== undefined) {
+        newJsonSettings.earlySubmitBonus = {
+          ...newJsonSettings.earlySubmitBonus,
+          ...input.settings.earlySubmitBonus,
+        };
+      }
+      if (input.settings.negativeMarking !== undefined) {
+        newJsonSettings.negativeMarking = {
+          ...newJsonSettings.negativeMarking,
+          ...input.settings.negativeMarking,
+        };
+      }
+      if (input.settings.resultScreenDuration !== undefined) {
+        newJsonSettings.resultScreenDuration = {
+          ...newJsonSettings.resultScreenDuration,
+          ...input.settings.resultScreenDuration,
+        };
+      }
+
+      updateData.settings = newJsonSettings;
     }
 
     const quiz = await prisma.quiz.update({

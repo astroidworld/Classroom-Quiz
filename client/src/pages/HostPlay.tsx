@@ -7,6 +7,7 @@ import {
   Users, Play, ShieldAlert, SkipForward, ArrowRight, 
   Trophy, LogOut, CheckCircle2, XCircle, Flame, Star, Medal, Clock 
 } from 'lucide-react';
+import CodeBlock from '../components/CodeBlock.js';
 
 // Accessibility Shape SVGs
 const TriangleIcon = () => (
@@ -49,8 +50,15 @@ export default function HostPlay() {
   const { 
     socket, roomCode, players, activeQuestion, questionIndex, totalQuestions,
     secondsRemaining, timeLimitSec, correctOptionId, explanation, leaderboard, 
-    podium, viewState, error, initializeConnection, resetGame 
+    podium, viewState, error, initializeConnection, resetGame,
+    submissionMode, isAnswerRevealed, revealPayload
   } = useSocketStore();
+
+  const handleRevealAnswer = () => {
+    if (socket && roomCode) {
+      socket.emit('question:reveal:request', { roomCode });
+    }
+  };
 
   useEffect(() => {
     // Reset any previous student session first to prevent reconnect collisions
@@ -273,6 +281,9 @@ export default function HostPlay() {
                       <span className="bg-indigo-500/20 text-indigo-400 text-xs px-2.5 py-1 rounded-lg font-black">
                         QUESTION {questionIndex} OF {totalQuestions}
                       </span>
+                      <span className="bg-slate-900 border border-slate-800 text-slate-400 text-[10px] px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider">
+                        Mode: {submissionMode === 'auto' ? 'Auto-Submit' : 'Manual Submit'}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-6">
@@ -299,6 +310,15 @@ export default function HostPlay() {
                     {activeQuestion.imageUrl && (
                       <div className="w-full max-w-md mx-auto h-48 rounded-xl overflow-hidden border border-slate-800 bg-slate-950/20 flex items-center justify-center">
                         <img src={activeQuestion.imageUrl} alt="Question diagram" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+
+                    {activeQuestion.codeSnippet && (
+                      <div className="w-full max-w-3xl mx-auto mt-4 text-left">
+                        <CodeBlock 
+                          code={activeQuestion.codeSnippet} 
+                          language={activeQuestion.codeLanguage || 'text'} 
+                        />
                       </div>
                     )}
                   </div>
@@ -338,45 +358,245 @@ export default function HostPlay() {
 
             case 'QUESTION_LOCK':
               if (!activeQuestion) return null;
-              const correctOption = activeQuestion.options.find(o => o.id === correctOptionId);
+
+              if (!isAnswerRevealed) {
+                return (
+                  <div className="w-full max-w-2xl text-center space-y-8 animate-fade-in">
+                    <div className="glass-card p-10 rounded-3xl border-slate-700/60 shadow-glow flex flex-col items-center gap-6">
+                      <div className="relative w-24 h-24 flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+                        <Clock className="w-10 h-10 text-indigo-400 animate-pulse" />
+                      </div>
+
+                      <div className="space-y-3">
+                        <h2 className="text-3xl font-black font-display tracking-tight text-slate-100">
+                          Classroom Submissions Locked!
+                        </h2>
+                        <p className="text-slate-400 font-semibold text-sm max-w-md">
+                          All student responses have been received or the timer has expired. Ready to reveal the correct answer?
+                        </p>
+                      </div>
+
+                      {/* Quick status counters */}
+                      <div className="grid grid-cols-2 gap-4 w-full max-w-xs border-t border-b border-slate-850 py-4 my-2 text-xs">
+                        <div>
+                          <span className="text-slate-550 font-bold uppercase tracking-wider block">Submitted</span>
+                          <strong className="text-lg font-black text-indigo-400">{answeredPlayers.length}</strong>
+                        </div>
+                        <div className="border-l border-slate-850">
+                          <span className="text-slate-550 font-bold uppercase tracking-wider block">Total Players</span>
+                          <strong className="text-lg font-black text-slate-300">{onlinePlayers.length}</strong>
+                        </div>
+                      </div>
+
+                      {/* Reveal Button */}
+                      <button
+                        onClick={handleRevealAnswer}
+                        className="w-full max-w-xs py-4 px-6 rounded-2xl bg-indigo-500 hover:bg-indigo-650 text-white font-black uppercase tracking-wider shadow-lg hover:shadow-indigo-500/10 active:scale-[0.99] transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
+                      >
+                        <ArrowRight className="w-5 h-5 fill-white shrink-0" />
+                        Reveal Correct Answer
+                      </button>
+                    </div>
+
+                    <div className="flex justify-start">
+                      <button
+                        onClick={handleEndQuiz}
+                        className="text-xs text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider"
+                      >
+                        End Quiz Early
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Answer has been revealed: render detailed analytics dashboard
+              const correctOption = activeQuestion.options.find(o => o.id === (revealPayload?.correctOptionId || correctOptionId));
+              const currentExplanation = explanation;
 
               return (
-                <div className="w-full max-w-2xl space-y-6 animate-fade-in">
-                  <div className="glass-card p-8 rounded-2xl border-slate-700/60 shadow-glow text-center space-y-6">
-                    <div className="inline-flex p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                      <CheckCircle2 className="w-8 h-8" />
-                    </div>
-                    
-                    <div>
-                      <h2 className="text-xl text-slate-400 font-bold uppercase tracking-wider mb-2">Correct Answer Revealed</h2>
-                      <h1 className="text-3xl font-black text-emerald-400 leading-tight">
-                        {correctOption?.text || 'No correct option set'}
-                      </h1>
+                <div className="w-full max-w-4xl space-y-6 animate-fade-in pb-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left Column: Correct Answer and Explanation */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="glass-card p-8 rounded-2xl border-slate-700/60 shadow-glow text-center space-y-5">
+                        <div className="inline-flex p-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          <CheckCircle2 className="w-8 h-8" />
+                        </div>
+                        
+                        <div>
+                          <h2 className="text-xs text-slate-450 font-bold uppercase tracking-widest mb-1.5">Correct Option</h2>
+                          <h1 className="text-3xl font-black text-emerald-400 leading-tight">
+                            {correctOption?.text || 'No correct option set'}
+                          </h1>
+                        </div>
+
+                        {currentExplanation && (
+                          <div className="bg-slate-950/40 border border-slate-850/80 p-5 rounded-xl text-left text-sm leading-relaxed">
+                            <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider block mb-1">Explanation</span>
+                            <p className="text-slate-350 font-semibold">{currentExplanation}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Option Distribution Bars */}
+                      <div className="glass-card p-6 rounded-2xl border-slate-800 space-y-4">
+                        <h3 className="text-xs text-slate-400 font-black uppercase tracking-wider border-b border-slate-850 pb-2">
+                          Selection Distribution
+                        </h3>
+                        <div className="space-y-3.5">
+                          {activeQuestion.options.map((opt, idx) => {
+                            const count = revealPayload?.optionDistribution?.[opt.id] || 0;
+                            const total = revealPayload?.totalCount || 0;
+                            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                            const isCorrectOpt = opt.id === (revealPayload?.correctOptionId || correctOptionId);
+                            const style = optionStyles[idx] || optionStyles[0];
+
+                            return (
+                              <div key={opt.id} className="space-y-1">
+                                <div className="flex justify-between text-xs font-bold text-slate-300">
+                                  <span className="flex items-center gap-1.5">
+                                    <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[8px] font-black text-white ${style.iconBg}`}>
+                                      {idx + 1}
+                                    </span>
+                                    <span className="truncate max-w-[220px] sm:max-w-md">{opt.text}</span>
+                                    {isCorrectOpt && (
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                    )}
+                                  </span>
+                                  <span>{count} / {total} ({percentage}%)</span>
+                                </div>
+                                <div className="h-4 bg-slate-950 rounded-full overflow-hidden border border-slate-900 flex">
+                                  <div
+                                    className={`h-full ${isCorrectOpt ? 'bg-emerald-500' : 'bg-indigo-500/50'} transition-all duration-500`}
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
 
-                    {explanation && (
-                      <div className="bg-slate-950/40 border border-slate-850 p-5 rounded-xl text-left text-sm leading-relaxed">
-                        <span className="text-[10px] text-slate-500 font-black uppercase tracking-wider block mb-1">Explanation</span>
-                        <p className="text-slate-350 font-semibold">{explanation}</p>
+                    {/* Right Column: Statistics Summary */}
+                    <div className="space-y-6">
+                      <div className="glass-card p-6 rounded-2xl border-slate-800 space-y-4">
+                        <h3 className="text-xs text-slate-450 font-black uppercase tracking-widest border-b border-slate-850 pb-2">
+                          Performance Stats
+                        </h3>
+                        
+                        <div className="divide-y divide-slate-850/80 space-y-3.5">
+                          <div className="pt-2 flex justify-between items-center text-xs">
+                            <span className="text-slate-400 font-semibold">Average Response Time</span>
+                            <span className="font-black text-slate-200">
+                              {revealPayload?.averageResponseTimeMs && revealPayload.averageResponseTimeMs > 0
+                                ? `${(revealPayload.averageResponseTimeMs / 1000).toFixed(2)}s`
+                                : 'N/A'}
+                            </span>
+                          </div>
+
+                          <div className="pt-3 flex justify-between items-center text-xs">
+                            <span className="text-slate-400 font-semibold">Correct Responses</span>
+                            <span className="font-black text-emerald-400">
+                              {revealPayload?.correctCount || 0} / {revealPayload?.totalCount || 0}
+                            </span>
+                          </div>
+
+                          <div className="pt-3 flex justify-between items-center text-xs">
+                            <span className="text-slate-400 font-semibold">Early Bonus Awarded</span>
+                            <span className="font-black text-amber-400">
+                              +{revealPayload?.totalEarlyBonusAwarded || 0} pts
+                            </span>
+                          </div>
+
+                          <div className="pt-3 flex justify-between items-center text-xs">
+                            <span className="text-slate-400 font-semibold">Negative Penalties</span>
+                            <span className="font-black text-rose-400">
+                              -{revealPayload?.totalPenaltyDeducted || 0} pts
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {/* Quick Next Button */}
+                      <button
+                        onClick={handleNextQuestion}
+                        className="w-full py-4 px-6 rounded-2xl bg-indigo-500 hover:bg-indigo-650 text-white font-black uppercase tracking-wider shadow-lg active:scale-[0.99] transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm"
+                      >
+                        <span>Show Standings</span>
+                        <ArrowRight className="w-5 h-5 fill-white shrink-0" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Action Navigation */}
-                  <div className="flex justify-between items-center gap-4">
+                  {/* Student-Level Breakdown Table */}
+                  {revealPayload?.studentResults && (
+                    <div className="glass-card p-6 rounded-2xl border-slate-800 space-y-4">
+                      <h3 className="text-xs text-slate-450 font-black uppercase tracking-widest border-b border-slate-850 pb-2">
+                        Student-Level Breakdown
+                      </h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-850 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              <th className="pb-3 pr-4">Student</th>
+                              <th className="pb-3 px-4">Selection</th>
+                              <th className="pb-3 px-4 text-center">Correct</th>
+                              <th className="pb-3 px-4 text-right">Points</th>
+                              <th className="pb-3 px-4 text-right">Early Bonus</th>
+                              <th className="pb-3 px-4 text-right">Penalty</th>
+                              <th className="pb-3 pl-4 text-right">Response Time</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-850/50 text-xs font-medium">
+                            {revealPayload.studentResults.map((res: any) => {
+                              const selectedOpt = activeQuestion.options.find(o => o.id === res.selectedOptionId);
+                              return (
+                                <tr key={res.displayName} className="hover:bg-slate-900/30">
+                                  <td className="py-3 pr-4 font-bold text-slate-200">{res.displayName}</td>
+                                  <td className="py-3 px-4 text-slate-400 max-w-[150px] truncate">
+                                    {selectedOpt?.text || <span className="text-slate-650 italic">Unanswered</span>}
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    {res.selectedOptionId === null ? (
+                                      <Clock className="w-4 h-4 text-amber-500 mx-auto" />
+                                    ) : res.isCorrect ? (
+                                      <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto" />
+                                    ) : (
+                                      <XCircle className="w-4 h-4 text-rose-400 mx-auto" />
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-bold text-slate-350">
+                                    {res.pointsAwarded > 0 ? `+${res.pointsAwarded}` : res.pointsAwarded}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-bold text-amber-400">
+                                    {res.earlyBonus > 0 ? `+${res.earlyBonus}` : '-'}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-bold text-rose-400">
+                                    {res.penalty > 0 ? `-${res.penalty}` : '-'}
+                                  </td>
+                                  <td className="py-3 pl-4 text-right text-slate-405">
+                                    {res.responseTimeMs && res.responseTimeMs > 0
+                                      ? `${(res.responseTimeMs / 1000).toFixed(2)}s`
+                                      : 'N/A'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center pt-2">
                     <button
                       onClick={handleEndQuiz}
                       className="text-xs text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider"
                     >
                       End Quiz Early
-                    </button>
-
-                    <button
-                      onClick={handleNextQuestion} // This is next question
-                      className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center gap-2 text-sm uppercase tracking-wide"
-                    >
-                      <span>Show Standings / Next Question</span>
-                      <ArrowRight className="w-4.5 h-4.5" />
                     </button>
                   </div>
                 </div>
@@ -491,11 +711,15 @@ export default function HostPlay() {
                     {/* 1st Place Column */}
                     {firstPlace && (
                       <div className="flex flex-col items-center flex-1 animate-fade-in opacity-0" style={{ animationFillMode: 'forwards' }}>
-                        <span className="text-sm font-black truncate max-w-[100px] text-yellow-400 mb-1.5">{firstPlace.displayName}</span>
-                        <div className="w-full bg-indigo-650/30 border border-indigo-500/35 rounded-t-3xl flex flex-col items-center justify-center p-3 h-36 shadow-glow relative">
-                          <div className="absolute -top-6 animate-bounce">
-                            <Star className="w-8 h-8 text-yellow-400 fill-yellow-400" />
+                        <div className="flex flex-col items-center mb-2">
+                          <div className="animate-bounce mb-1">
+                            <Star className="w-6 h-6 text-yellow-400 fill-yellow-400" />
                           </div>
+                          <span className="text-sm font-black truncate max-w-[100px] text-yellow-400">
+                            {firstPlace.displayName}
+                          </span>
+                        </div>
+                        <div className="w-full bg-indigo-650/30 border border-indigo-500/35 rounded-t-3xl flex flex-col items-center justify-center p-3 h-36 shadow-glow relative">
                           <Trophy className="w-8 h-8 text-yellow-400 fill-yellow-400 mt-2" />
                           <span className="text-xs text-yellow-300 font-black mt-1 uppercase tracking-wider">Champion</span>
                           <span className="text-sm font-black mt-2 text-yellow-400">{firstPlace.score}</span>

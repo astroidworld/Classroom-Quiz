@@ -37,6 +37,7 @@ model Quiz {
   shuffleOptions                  Boolean    @default(false)
   showLeaderboardBetweenQuestions Boolean    @default(true)
   allowLateJoin                   Boolean    @default(true)
+  settings                        Json?      @default("{}")
   
   createdAt                       DateTime   @default(now())
   questions                       Question[]
@@ -59,6 +60,8 @@ model Question {
   timeLimitSec Int?         // Nullable override for Quiz.timePerQuestion
   points       Int          @default(1000)
   explanation  String?
+  codeSnippet  String?
+  codeLanguage String?
   
   options      Option[]
   answers      Answer[]
@@ -145,12 +148,15 @@ model Answer {
   participant      Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   questionId       String
   question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  selectedOptionId String
-  selectedOption   Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  selectedOptionId String?     // Made optional
+  selectedOption   Option?     @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
   isCorrect        Boolean
   responseTimeMs   Int
   pointsAwarded    Int
   answeredAt       DateTime    @default(now())
+  autoSubmitted    Boolean     @default(false)   // true if server auto-submitted on timeout or no selection
+  earlyBonus       Int         @default(0)       // early submit bonus points awarded (0 if not applicable)
+  penalty          Int         @default(0)       // negative marking penalty applied (0 if not applicable)
 
   // Each participant can submit at most one answer per question in a session
   @@unique([participantId, questionId])
