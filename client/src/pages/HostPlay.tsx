@@ -603,55 +603,202 @@ export default function HostPlay() {
               );
 
             case 'LEADERBOARD':
+              const showRecap = !!revealPayload && !!activeQuestion;
+              
+              // Fastest solver calculations
+              const correctAnswersList = revealPayload?.studentResults?.filter((r: any) => r.isCorrect && r.selectedOptionId !== null) || [];
+              const fastestStudent = correctAnswersList.length > 0
+                ? correctAnswersList.reduce((fastest: any, current: any) => 
+                    (current.responseTimeMs && current.responseTimeMs > 0 && current.responseTimeMs < fastest.responseTimeMs) ? current : fastest, 
+                    correctAnswersList[0]
+                  )
+                : null;
+
+              // Accuracy percentage
+              const totalSubmissions = revealPayload?.totalCount || 0;
+              const correctCount = revealPayload?.correctCount || 0;
+              const accuracyRate = totalSubmissions > 0 ? Math.round((correctCount / totalSubmissions) * 100) : 0;
+
               return (
-                <div className="w-full max-w-xl space-y-6 animate-fade-in">
-                  <div className="glass-card p-8 rounded-2xl shadow-glow text-center space-y-6">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
-                        <Trophy className="w-6 h-6 fill-current" />
+                <div className={`w-full ${showRecap ? 'max-w-6xl' : 'max-w-xl'} space-y-6 animate-fade-in`}>
+                  <div className={`grid grid-cols-1 ${showRecap ? 'lg:grid-cols-12' : ''} gap-6`}>
+                    
+                    {/* Standings Column */}
+                    <div className={`glass-card p-8 rounded-2xl shadow-glow text-center space-y-6 ${showRecap ? 'lg:col-span-5' : ''}`}>
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                          <Trophy className="w-6 h-6 fill-current" />
+                        </div>
+                        <h1 className="font-display text-3xl font-black tracking-tight mt-2 text-glow">Standings</h1>
+                        <p className="text-xs text-slate-405 font-bold uppercase tracking-wider">
+                          Question {questionIndex} of {totalQuestions}
+                        </p>
                       </div>
-                      <h1 className="font-display text-3xl font-black tracking-tight mt-2 text-glow">Standings</h1>
+
+                      {/* Standings List */}
+                      <div className="border border-slate-850 rounded-xl bg-slate-950/20 divide-y divide-slate-850/60 max-h-96 overflow-y-auto">
+                        {leaderboard.length === 0 ? (
+                          <p className="text-sm text-slate-550 text-center py-6">No scores registered yet.</p>
+                        ) : (
+                          leaderboard.map((player) => {
+                            // Find pointsChange if available
+                            const pointsEarned = player.pointsChange ?? 0;
+                            // Check if player is online from the players array
+                            const playerInfo = players.find(p => p.displayName === player.displayName);
+                            const isPlayerOnline = playerInfo ? playerInfo.isOnline : player.isOnline;
+
+                            return (
+                              <div 
+                                key={player.displayName}
+                                className="p-4 flex items-center justify-between transition-all hover:bg-slate-900/10"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className={`w-6 text-center text-xs font-black select-none ${
+                                    player.rank === 1 ? 'text-yellow-400 text-glow' : player.rank === 2 ? 'text-slate-350' : player.rank === 3 ? 'text-amber-600' : 'text-slate-500'
+                                  }`}>
+                                    #{player.rank}
+                                  </span>
+                                  <span className="relative flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${isPlayerOnline ? 'bg-emerald-500' : 'bg-slate-600'}`}></span>
+                                    <span className="text-sm font-semibold text-white">
+                                      {player.displayName}
+                                    </span>
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                  {/* Points change badge */}
+                                  {pointsEarned > 0 ? (
+                                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-black">
+                                      +{pointsEarned}
+                                    </span>
+                                  ) : pointsEarned < 0 ? (
+                                    <span className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] px-2 py-0.5 rounded font-black">
+                                      {pointsEarned}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-600 text-[10px] font-semibold">
+                                      +0
+                                    </span>
+                                  )}
+
+                                  {player.streak >= 2 && (
+                                    <div className="flex items-center gap-0.5 text-orange-500 text-xs font-black">
+                                      <Flame className="w-4 h-4 fill-orange-500" />
+                                      <span>{player.streak}</span>
+                                    </div>
+                                  )}
+                                  <span className="text-sm font-black text-slate-300">
+                                    {player.score} pts
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
                     </div>
 
-                    {/* Table */}
-                    <div className="border border-slate-850 rounded-xl bg-slate-950/20 divide-y divide-slate-850/60 max-h-80 overflow-y-auto">
-                      {leaderboard.length === 0 ? (
-                        <p className="text-sm text-slate-500 text-center py-6">No scores registered yet.</p>
-                      ) : (
-                        leaderboard.slice(0, 5).map((player) => (
-                          <div 
-                            key={player.displayName}
-                            className="p-4 flex items-center justify-between transition-all"
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className={`w-6 text-center text-xs font-black select-none ${
-                                player.rank === 1 ? 'text-yellow-400 text-glow' : player.rank === 2 ? 'text-slate-350' : player.rank === 3 ? 'text-amber-600' : 'text-slate-500'
-                              }`}>
-                                #{player.rank}
-                              </span>
-                              <span className="text-sm font-semibold text-white">
-                                {player.displayName}
-                              </span>
-                            </div>
+                    {/* Question Recap Column */}
+                    {showRecap && (
+                      <div className="lg:col-span-7 glass-card p-8 rounded-2xl border-slate-800 space-y-6 flex flex-col justify-between">
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center border-b border-slate-850 pb-3">
+                            <span className="bg-indigo-500/15 text-indigo-400 text-[10px] px-2.5 py-1 rounded-lg font-black uppercase tracking-wider">
+                              Last Question Recap
+                            </span>
+                            <span className="text-xs text-slate-450 font-bold uppercase tracking-wider">
+                              Average Time: {revealPayload.averageResponseTimeMs && revealPayload.averageResponseTimeMs > 0
+                                ? `${(revealPayload.averageResponseTimeMs / 1000).toFixed(2)}s`
+                                : 'N/A'}
+                            </span>
+                          </div>
 
-                            <div className="flex items-center gap-4">
-                              {player.streak >= 2 && (
-                                <div className="flex items-center gap-0.5 text-orange-500 text-xs font-black">
-                                  <Flame className="w-4 h-4 fill-orange-500" />
-                                  <span>{player.streak}</span>
-                                </div>
-                              )}
-                              <span className="text-sm font-black text-slate-300">
-                                {player.score} pts
-                              </span>
+                          {/* Question Text */}
+                          <div className="space-y-3 text-left">
+                            <h2 className="text-xl font-bold font-display text-slate-100 leading-snug">
+                              {activeQuestion.text}
+                            </h2>
+                            {activeQuestion.codeSnippet && (
+                              <div className="text-xs text-left max-h-32 overflow-y-auto">
+                                <CodeBlock 
+                                  code={activeQuestion.codeSnippet} 
+                                  language={activeQuestion.codeLanguage || 'text'} 
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Option Distribution */}
+                          <div className="space-y-3.5 pt-2 text-left">
+                            <h3 className="text-[10px] text-slate-500 font-black uppercase tracking-wider">
+                              Answer Distribution
+                            </h3>
+                            <div className="space-y-3">
+                              {activeQuestion.options.map((opt, idx) => {
+                                const count = Array.isArray(revealPayload?.optionDistribution)
+                                  ? (revealPayload.optionDistribution.find((d: any) => d.optionId === opt.id)?.count || 0)
+                                  : 0;
+                                const total = revealPayload?.totalCount || 0;
+                                const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+                                const isCorrectOpt = opt.id === (revealPayload?.correctOptionId || correctOptionId);
+                                const style = optionStyles[idx] || optionStyles[0];
+
+                                return (
+                                  <div key={opt.id} className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold text-slate-350">
+                                      <span className="flex items-center gap-1.5 min-w-0">
+                                        <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[8px] font-black text-white shrink-0 ${style.iconBg}`}>
+                                          {idx + 1}
+                                        </span>
+                                        <span className="truncate">{opt.text}</span>
+                                        {isCorrectOpt && (
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                        )}
+                                      </span>
+                                      <span className="shrink-0">{count} ({percentage}%)</span>
+                                    </div>
+                                    <div className="h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-900 flex">
+                                      <div
+                                        className={`h-full ${isCorrectOpt ? 'bg-emerald-500' : 'bg-indigo-500/40'} transition-all duration-500`}
+                                        style={{ width: `${percentage}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </div>
+
+                        {/* Performance Stats Grid */}
+                        <div className="grid grid-cols-3 gap-4 border-t border-slate-850 pt-4 mt-2">
+                          <div className="bg-slate-950/40 border border-slate-900 p-3 rounded-xl text-center space-y-1">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Accuracy</span>
+                            <span className="text-lg font-black text-emerald-400">{accuracyRate}%</span>
+                          </div>
+                          
+                          <div className="bg-slate-950/40 border border-slate-900 p-3 rounded-xl text-center space-y-1">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">Submissions</span>
+                            <span className="text-lg font-black text-indigo-400">
+                              {correctCount} / {totalSubmissions}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950/40 border border-slate-900 p-3 rounded-xl text-center space-y-1 min-w-0">
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block truncate">Fastest Solver</span>
+                            <span className="text-xs font-black text-amber-400 truncate block mt-1" title={fastestStudent ? `${fastestStudent.displayName} (${(fastestStudent.responseTimeMs / 1000).toFixed(2)}s)` : 'None'}>
+                              {fastestStudent 
+                                ? `${fastestStudent.displayName} (${(fastestStudent.responseTimeMs / 1000).toFixed(2)}s)`
+                                : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex justify-between items-center gap-4">
+                  <div className="flex justify-between items-center gap-4 pt-2">
                     <button
                       onClick={handleEndQuiz}
                       className="text-xs text-slate-400 hover:text-red-400 font-bold uppercase tracking-wider"
