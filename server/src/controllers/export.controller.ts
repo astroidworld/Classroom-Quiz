@@ -210,7 +210,7 @@ export const exportSessionPDF = async (req: AuthenticatedRequest, res: Response,
     addDetailLine('Total Penalties:', `-${totalPenaltyAll} pts`);
 
     // KPI Cards Block (rendered on Cover page)
-    const kpiY = 380;
+    const kpiY = 415;
     doc.fontSize(11).font('Helvetica-Bold').fillColor(primaryColor).text('KEY PERFORMANCE INDICATORS (KPIs)', 45, kpiY);
     
     // Draw 4 Grid Cards
@@ -296,8 +296,9 @@ export const exportSessionPDF = async (req: AuthenticatedRequest, res: Response,
       const pAccuracy = pTotal > 0 ? Math.round((pCorrect / pTotal) * 100) : 0;
       const pSpeed = pTotal > 0 ? Math.round((p.answers.reduce((acc, a) => acc + a.responseTimeMs, 0) / pTotal) / 100) / 10 : 0;
 
+      const displayNameText = p.displayName.length > 22 ? p.displayName.substring(0, 20) + '...' : p.displayName;
       doc.fontSize(9).font('Helvetica-Bold').fillColor(textColor).text(`#${p.finalRank || idx + 1}`, 55, tableY + 7);
-      doc.font('Helvetica-Bold').text(p.displayName, 100, tableY + 7);
+      doc.font('Helvetica-Bold').text(displayNameText, 100, tableY + 7);
       doc.font('Helvetica').text(`${p.finalScore} pts`, 250, tableY + 7);
       doc.text(`${pAccuracy}%`, 370, tableY + 7);
       doc.text(`${pSpeed}s`, 470, tableY + 7);
@@ -331,10 +332,10 @@ export const exportSessionPDF = async (req: AuthenticatedRequest, res: Response,
         explanationHeight = doc.heightOfString(`Explanation: ${q.explanation}`, { width: 495 }) + 8;
       }
       
-      const blockHeight = 15 + textHeight + 10 + codeHeight + 45 + explanationHeight + 10;
+      const blockHeight = 15 + textHeight + 10 + codeHeight + 58 + explanationHeight + 10;
 
       // If bottom of page is reached, add page
-      if (questionY + blockHeight > 720) {
+      if (questionY > 85 && questionY + blockHeight > 720) {
         doc.addPage();
         doc.fontSize(16).font('Helvetica-Bold').fillColor(primaryColor).text('Question-by-Question Analysis (Cont.)', 45, 50);
         doc.moveTo(45, 70).lineTo(560, 70).strokeColor(secondaryColor).lineWidth(1.5).stroke();
@@ -386,14 +387,14 @@ export const exportSessionPDF = async (req: AuthenticatedRequest, res: Response,
       
       let optTextRows = currentInnerY + 12;
       q.options.forEach((opt, oIdx) => {
-        if (oIdx >= 3) return; // limit to first 3 options to fit layout block
+        if (oIdx >= 4) return; // limit to first 4 options to fit layout block
         const optCount = answersForQ.filter(a => a.selectedOptionId === opt.id).length;
         doc.fontSize(8).font(opt.isCorrect ? 'Helvetica-Bold' : 'Helvetica').fillColor(opt.isCorrect ? correctGreen : textColor);
         doc.text(`${opt.text.substring(0, 24)}${opt.text.length > 24 ? '...' : ''} (${optCount} selected)`, optionX, optTextRows);
         optTextRows += 11;
       });
 
-      currentInnerY += 45;
+      currentInnerY += 58;
 
       // Explanation
       if (q.explanation) {
@@ -407,8 +408,10 @@ export const exportSessionPDF = async (req: AuthenticatedRequest, res: Response,
     // PAGE 4+: INDIVIDUAL STUDENT REPORTS
     // =========================================================================
     session.participants.forEach((p) => {
-      // Skip students who didn't submit any answers to prevent blank pages at the end
+      // Skip students who didn't submit any answers or didn't select any options (no active participation)
       if (p.answers.length === 0) return;
+      const hasParticipation = p.answers.some(ans => ans.selectedOptionId !== null);
+      if (!hasParticipation) return;
 
       doc.addPage();
       doc.fontSize(16).font('Helvetica-Bold').fillColor(primaryColor).text(`Student Performance: ${p.displayName}`, 45, 50);
