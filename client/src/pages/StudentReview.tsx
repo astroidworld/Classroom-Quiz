@@ -88,7 +88,7 @@ export default function StudentReview() {
           <h2 className="text-2xl font-bold font-display mb-2">Review Unavailable</h2>
           <p className="text-slate-400 text-sm mb-6 font-medium">{error || 'No questions found for review.'}</p>
           <button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/join')} 
             className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl transition-all text-sm shadow-md"
           >
             Go Back
@@ -112,7 +112,7 @@ export default function StudentReview() {
       <header className="glass-panel sticky top-0 z-30 px-6 py-4 flex items-center justify-between border-b border-slate-900">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/join')}
             className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-900 border border-slate-850 transition-all"
             title="Exit Review"
           >
@@ -214,8 +214,8 @@ export default function StudentReview() {
           </button>
 
           {currentIndex === questions.length - 1 ? (
-            <button
-              onClick={() => navigate('/')}
+             <button
+              onClick={() => navigate('/join')}
               className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-md text-xs"
             >
               Finish Review

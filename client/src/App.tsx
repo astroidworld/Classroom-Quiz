@@ -5,6 +5,7 @@ import Login from './pages/Login.js';
 import Register from './pages/Register.js';
 import QuizList from './pages/QuizList.js';
 import QuizEditor from './pages/QuizEditor.js';
+import LandingPage from './pages/LandingPage.js';
 
 import { useSocketStore } from './store/socketStore.js';
 import JoinRoom from './pages/JoinRoom.js';
@@ -105,8 +106,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Landing Page */}
+        <Route path="/" element={<LandingPage />} />
         {/* Student joining flow (public landing) */}
-        <Route path="/" element={<StudentPlayWrapper />} />
+        <Route path="/join" element={<StudentPlayWrapper />} />
         
         {/* Auth routes protected from logged-in hosts */}
         <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />

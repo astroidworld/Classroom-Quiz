@@ -16,6 +16,7 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default('*'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(900000), // 15 mins
   RATE_LIMIT_MAX: z.coerce.number().default(100),
+  TEACHER_REGISTRATION_CODE: z.string().default('quiz_teacher_secret_code_2026'),
 });
 
 const result = envSchema.safeParse(process.env);

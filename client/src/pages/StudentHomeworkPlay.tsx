@@ -198,7 +198,7 @@ export default function StudentHomeworkPlay() {
           <h2 className="text-2xl font-bold font-display mb-2">Quiz Load Error</h2>
           <p className="text-slate-400 text-sm mb-6 font-medium">{error}</p>
           <button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/join')} 
             className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl transition-all text-sm shadow-md"
           >
             Go Back
@@ -241,7 +241,7 @@ export default function StudentHomeworkPlay() {
 
           <div className="pt-4 border-t border-slate-850">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/join')}
               className="w-full bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md text-sm"
             >
               Exit to Homepage
@@ -268,7 +268,7 @@ export default function StudentHomeworkPlay() {
       <header className="glass-panel sticky top-0 z-30 px-6 py-4 flex items-center justify-between border-b border-slate-900">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => { if(confirm('Exit homework session? Your progress is saved.')) navigate('/'); }}
+            onClick={() => { if(confirm('Exit homework session? Your progress is saved.')) navigate('/join'); }}
             className="text-slate-400 hover:text-white p-2 rounded-xl bg-slate-900 border border-slate-850 transition-all"
             title="Exit Session"
           >

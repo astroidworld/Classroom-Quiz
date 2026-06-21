@@ -21,6 +21,10 @@ export default function JoinRoom() {
     if (codeParam) {
       setCode(codeParam.slice(0, 6));
     }
+    const nameParam = searchParams.get('name');
+    if (nameParam) {
+      setName(nameParam.slice(0, 15));
+    }
   }, [initializeConnection, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {

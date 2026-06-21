@@ -15,7 +15,12 @@ const signToken = (payload: { id: string; email: string; name: string }): string
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, name } = registerSchema.parse(req.body);
+    const { email, password, name, inviteCode } = registerSchema.parse(req.body);
+
+    // Validate invite code
+    if (inviteCode !== env.TEACHER_REGISTRATION_CODE) {
+      throw new AppError('Invalid registration invite code', 403);
+    }
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
