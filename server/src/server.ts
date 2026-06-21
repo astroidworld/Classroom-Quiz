@@ -6,6 +6,7 @@ import { registerQuizHandlers } from './sockets/quizSocket.js';
 
 const server = http.createServer(app);
 
+
 // Initialize Socket.IO server
 const io = new Server(server, {
   cors: {
