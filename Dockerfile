@@ -54,4 +54,6 @@ ENV PORT=5000
 EXPOSE 5000
 
 # Run the backend server, which will also serve client/dist
-CMD ["npm", "run", "start", "--workspace=server"]
+# CMD ["npm", "run", "start", "--workspace=server"]
+# New:
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=./server/prisma/schema.prisma && npm run start --workspace=server"]
